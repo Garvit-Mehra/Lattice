@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LATTICE · IITH Operations Console — Student Portal</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=20260927_11">
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-900 antialiased selection:bg-slate-900 selection:text-white">
+
+    <!-- Global Header Layout -->
+    <header class="border-b border-slate-200 bg-white sticky top-0 z-40 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Left: Brand & Unstyled Badge -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="font-black text-xl text-slate-900 tracking-tight">LATTICE</span>
+                    <span class="text-slate-300 font-bold">·</span>
+                    <span class="text-xs font-bold text-slate-700 tracking-wide uppercase">IITH Operations Console</span>
+                    <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded font-mono border border-slate-200 font-semibold">
+                        STUDENT PORTAL
+                    </span>
+                </div>
+            </div>
+
+            <!-- Center: Segmented Control Bar -->
+            <nav class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button id="tab-btn-facilities" onclick="switchStudentTab('facilities')" class="flex items-center gap-1.5 bg-white text-slate-900 shadow-sm font-semibold rounded-lg px-4 py-1.5 text-xs transition-all">
+                    
+                    <span>Common Facilities</span>
+                </button>
+                <button id="tab-btn-room" onclick="switchStudentTab('room')" class="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 font-medium rounded-lg px-4 py-1.5 text-xs transition-all">
+                    
+                    <span>Room Maintenance</span>
+                </button>
+                <button id="tab-btn-admin" onclick="switchStudentTab('admin')" class="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 font-medium rounded-lg px-4 py-1.5 text-xs transition-all">
+                    
+                    <span>SLA Analytics</span>
+                </button>
+            </nav>
+
+            <!-- Right: Low-contrast Ghost Buttons Linking to Other Portals -->
+            <div class="flex items-center gap-2">
+                <a href="http://localhost:8001/" target="_blank" class="text-slate-500 hover:text-slate-800 text-xs font-mono px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Open Technician Portal">
+                    [Tech]
+                </a>
+                <a href="http://localhost:8002/" target="_blank" class="text-slate-500 hover:text-slate-800 text-xs font-mono px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Open Admin Panel">
+                    [Admin]
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Viewport Container -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- ================================================= -->
+        <!-- SCREEN 1: COMMON FACILITIES MATRIX -->
+        <!-- ================================================= -->
+        <section id="view-facilities" class="space-y-6">
+            <!-- Dynamic Filter Bar -->
+            <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                    <!-- Hostel Dropdown -->
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Hostel:</label>
+                        <select id="hostel-select" class="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-800 outline-none focus:border-slate-400 shadow-2xs">
+                            <option value="16">Anandi Joshi</option>
+                            <option value="5">Aryabhatta</option>
+                            <option value="19">Bhabha</option>
+                            <option value="9">Bhaskara</option>
+                            <option value="14">Brahmagupta</option>
+                            <option value="11">Charaka</option>
+                            <option value="6">Gargi</option>
+                            <option value="17">Kalam</option>
+                            <option value="3">Kalpana Chawla</option>
+                            <option value="12">Kautilya</option>
+                            <option value="7">Maitreyi</option>
+                            <option value="18">Raman</option>
+                            <option value="4">Ramanuja</option>
+                            <option value="20">Ramanujan</option>
+                            <option value="2">SN Bose</option>
+                            <option value="15">Sarojini Naidu</option>
+                            <option value="8">Susruta</option>
+                            <option value="10">Varahamihira</option>
+                            <option value="21">Visweswaraya</option>
+                            <option value="1">Vivekananda</option>
+                            <option value="13">Vyasa</option>
+                        </select>
+                    </div>
+
+                    <!-- Floor Selector (Horizontal Pill Bar) -->
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Floor:</label>
+                        <!-- Mobile Dropdown Fallback -->
+                        <select id="facility-floor-select" class="sm:hidden bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-800 outline-none">
+                            <option value="1" selected>Floor 1</option>
+                        </select>
+                        <!-- Desktop Horizontal Pill Bar -->
+                        <div id="floor-buttons-container" class="hidden sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                            <!-- Populated dynamically via app.js -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-xs text-slate-500 font-mono font-medium" id="appliances-count-label">
+                    Showing monitored appliances
+                </div>
+            </div>
+
+            <!-- Appliance Grid Cards -->
+            <div id="appliances-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <!-- Dynamically populated via loadAppliances() -->
+            </div>
+        </section>
+
+        <!-- ================================================= -->
+        <!-- SCREEN 2: ROOM MAINTENANCE & 2-STEP TRACKER -->
+        <!-- ================================================= -->
+        <section id="view-room" class="hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                
+                <!-- COLUMN 1: LODGE COMPLAINT -->
+                <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-5">
+                    <div class="border-b border-slate-100 pb-3">
+                        <h2 class="text-base font-bold text-slate-900 tracking-tight">Direct Room Maintenance Request</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Lodge personal room defects directly to the technician dispatch queue.</p>
+                    </div>
+
+                    <form id="room-ticket-form" onsubmit="submitRoomTicket(event)" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Hostel Block</label>
+                                <select id="room-hostel-select" class="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-slate-400 font-medium">
+                                    <option value="16">Anandi Joshi</option>
+                                    <option value="5">Aryabhatta</option>
+                                    <option value="19">Bhabha</option>
+                                    <option value="9">Bhaskara</option>
+                                    <option value="14">Brahmagupta</option>
+                                    <option value="11">Charaka</option>
+                                    <option value="6">Gargi</option>
+                                    <option value="17">Kalam</option>
+                                    <option value="3">Kalpana Chawla</option>
+                                    <option value="12">Kautilya</option>
+                                    <option value="7">Maitreyi</option>
+                                    <option value="18">Raman</option>
+                                    <option value="4">Ramanuja</option>
+                                    <option value="20">Ramanujan</option>
+                                    <option value="2">SN Bose</option>
+                                    <option value="15">Sarojini Naidu</option>
+                                    <option value="8">Susruta</option>
+                                    <option value="10">Varahamihira</option>
+                                    <option value="21">Visweswaraya</option>
+                                    <option value="1">Vivekananda</option>
+                                    <option value="13">Vyasa</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Floor</label>
+                                <select id="room-floor" class="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-slate-400 font-medium">
+                                    <!-- Populated dynamically via JS -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Room Number Real-Time Validation Box -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-xs font-semibold text-slate-700">Room Number</label>
+                                <span id="room-validation-badge" class="text-[11px] font-medium hidden"></span>
+                            </div>
+                            <input type="text" id="room-number" placeholder="e.g. G22 or 614" class="w-full bg-white border border-slate-200 text-xs font-mono font-bold text-slate-900 rounded-lg p-2.5 outline-none focus:border-slate-400" required>
+                            <p id="room-hostel-hint" class="text-[10px] text-slate-400 mt-1 font-mono">G01–G30 or 101–630</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Maintenance Category</label>
+                            <select id="room-category" class="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-slate-400 font-medium">
+                                <option value="electrical">Electrical (Fan, Lights, Switchboard, Wiring)</option>
+                                <option value="plumbing">Plumbing (Tap Leakage, Drain Clog, Flush Tank)</option>
+                                <option value="appliance">Appliance (Geyser, Water Dispenser)</option>
+                                <option value="civil">Furniture / Civil (Door Latch, Window, Cupboard)</option>
+                                <option value="network">LAN / Wi-Fi Network Socket</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Issue Details</label>
+                            <textarea id="room-desc" rows="3" placeholder="Describe the defect in detail (e.g. Fan regulator knob broken; sparks when rotated to speed 3)" class="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-slate-400 placeholder-slate-400" required></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Resident Name (Optional)</label>
+                                <input type="text" id="room-reporter-name" placeholder="e.g. Arun Nair" class="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-slate-400 placeholder-slate-400">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    Mobile Phone Number <span class="text-rose-600">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-mono font-bold">+91</span>
+                                    <input type="tel" id="room-reporter-contact" placeholder="9876543210" maxlength="10" class="w-full bg-white border border-slate-200 text-xs font-mono font-bold text-slate-900 rounded-lg py-2.5 pl-11 pr-3 outline-none focus:border-slate-400 placeholder-slate-400" required>
+                                </div>
+                                <p class="text-[10px] text-slate-500 mt-1">Required for tech contact & SMS alerts when work is finished.</p>
+                            </div>
+                        </div>
+
+
+                        <div id="room-ticket-result" class="hidden"></div>
+
+                        <button type="submit" class="w-full py-2.5 px-4 rounded-lg font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-colors flex items-center justify-center gap-1.5">
+                            <span class="font-mono font-bold text-[10px] text-amber-400">[DEMO]</span>
+                            <span>Submit Ticket (Generates #LAT-xxxx)</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- COLUMN 2: TRACK & 2-STEP VERIFY -->
+                <div class="space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                        <h3 class="text-sm font-bold text-slate-900 tracking-tight">Track & 2-Step Verify</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Check technician assignment and sign off on room repairs.</p>
+                        
+                        <div class="mt-4 flex gap-2">
+                            <input type="text" id="ticket-lookup-input" placeholder="Ticket Reference: #LAT-8921" class="flex-1 bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 uppercase rounded-lg px-3 py-2 outline-none focus:border-slate-400">
+                            <button onclick="lookupTicket()" class="px-4 py-2 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors">
+                                Fetch
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="ticket-status-display" class="hidden">
+                        <!-- Populated dynamically via lookupTicket() -->
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ================================================= -->
+        <!-- SCREEN 3: CAMPUS SLA ANALYTICS -->
+        <!-- ================================================= -->
+        <section id="view-admin" class="hidden space-y-6">
+            <!-- Top Metric Ribbon (3 Cards) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <!-- Card 1: Active Incidents -->
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-2">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Campus Incidents</p>
+                    <div class="text-3xl font-black font-mono text-slate-900" id="kpi-active-tickets">--</div>
+                    <div class="flex items-center gap-2 pt-1 text-[11px] font-mono">
+                        <span class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold" id="kpi-critical-subpill">-- Critical</span>
+                        <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200" id="kpi-standard-subpill">-- Standard</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: Urgent / Safety Hazards -->
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-2">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Urgent / Safety Hazards</p>
+                    <div class="text-3xl font-black font-mono text-rose-600" id="kpi-critical-tickets">--</div>
+                    <p class="text-[11px] text-slate-500">Escalated by multiple student crowd votes</p>
+                </div>
+
+                <!-- Card 3: Appliance Operational Health -->
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-2">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Appliance Operational Health</p>
+                    <div class="text-3xl font-black font-mono text-emerald-600" id="kpi-operational-pct">--%</div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                        <div id="kpi-health-bar" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 21-Hostel SLA Scoreboard (3x7 Responsive Grid) -->
+            <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 tracking-tight">21-Hostel SLA Scoreboard</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Average repair turnaround time in hours per block across all 21 hostels.</p>
+                    </div>
+                    <button onclick="loadAdminQueue()" class="text-xs font-mono font-medium text-slate-600 hover:text-slate-900">
+                        ↻ Refresh
+                    </button>
+                </div>
+                <div id="sla-cards-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Report Appliance Modal -->
+    <div id="report-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+        <div class="bg-white border border-slate-200 rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 id="modal-appliance-title" class="font-bold text-slate-900 text-sm">Report Appliance</h3>
+                <button onclick="closeReportModal()" class="text-slate-400 hover:text-slate-700 text-base">X</button>
+            </div>
+            
+            <p class="text-xs text-slate-600">Describe what is broken. Other students on your floor will be able to confirm with one tap rather than filing duplicate complaints.</p>
+
+            <textarea id="modal-issue-desc" rows="3" placeholder="e.g., Water is warm / Spin cycle stuck / Drum rattling loudly" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-900 outline-none focus:border-slate-400 focus:bg-white placeholder-slate-400" required></textarea>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeReportModal()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                <button onclick="submitApplianceReport()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition">Submit Report</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/app.js?v=20260927_10"></script>
+</body>
+</html>

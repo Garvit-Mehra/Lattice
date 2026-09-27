@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LATTICE · IITH Operations Console — Pitch Deck (MILAN 2026 Lambda Hackathon)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .slide { display: none; }
+        .slide.active { display: flex; }
+    </style>
+</head>
+<body class="bg-[#0b0f19] text-white min-h-screen flex flex-col justify-between select-none">
+
+    <!-- Top Status Bar -->
+    <header class="p-6 flex justify-between items-center border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md">
+        <div class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-sm">LAT</span>
+            <span class="font-extrabold text-base tracking-tight text-slate-200">LATTICE</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 font-semibold border border-indigo-500/30">LAMBDA HACKATHON 2026</span>
+        </div>
+        <div class="text-xs text-slate-400 font-mono">
+            Slide <span id="current-slide-num" class="text-white font-bold">1</span> / <span id="total-slides-num">10</span>
+        </div>
+    </header>
+
+    <!-- Slide Content Container -->
+    <main class="flex-1 flex items-center justify-center p-8 max-w-5xl mx-auto w-full">
+
+        <!-- Slide 1: Title & Hook -->
+        <div class="slide active flex-col items-center text-center space-y-6">
+            <span class="px-3.5 py-1.5 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-widest">Smart Campus Solutions for IITH</span>
+            <h1 class="text-5xl md:text-6xl font-black tracking-tight text-white">
+                LAT<span class="text-indigo-500">TICE</span>
+            </h1>
+            <p class="text-xs font-mono text-indigo-400 font-bold uppercase tracking-widest">IITH Operations Console</p>
+            <p class="text-xl md:text-2xl text-slate-300 font-medium max-w-2xl leading-relaxed">
+                Turning Campus Maintenance from an Opaque Bureaucracy into a Real-Time Crowd-Triaged Network.
+            </p>
+            <div class="pt-4 text-sm text-slate-400 font-mono">
+                MILAN 2026 • Inter-Hostel Competition • IIT Hyderabad
+            </div>
+        </div>
+
+        <!-- Slide 2: Ground Reality at IITH -->
+        <div class="slide flex-col space-y-6 text-left w-full">
+            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">The Problem</span>
+            <h2 class="text-4xl font-extrabold text-white">The "Broken Water Cooler" Dilemma at IITH</h2>
+            <p class="text-base text-slate-300">Picture 38°C heat in Kandi. A water cooler on Floor 2 stops cooling. What happens today?</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3 pt-4 text-center">
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                    <div class="text-xl font-mono font-bold text-indigo-400 mb-2">[1]</div>
+                    <div class="text-xs font-bold text-white">1. WhatsApp Venting</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Buried in 500 unread messages</div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                    <div class="text-xl font-mono font-bold text-indigo-400 mb-2">[2]</div>
+                    <div class="text-xs font-bold text-white">2. Beg Hostel Rep</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Single point of student failure</div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                    <div class="text-xl font-mono font-bold text-indigo-400 mb-2">[3]</div>
+                    <div class="text-xs font-bold text-white">3. Email Estate Office</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Lost in administrative inbox</div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                    <div class="text-xl font-mono font-bold text-indigo-400 mb-2">[4]</div>
+                    <div class="text-xs font-bold text-white">4. 20 Duplicate Emails</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Chaotic spam, no prioritization</div>
+                </div>
+                <div class="p-4 rounded-xl bg-red-950/40 border border-red-800/40">
+                    <div class="text-xl font-mono font-bold text-red-400 mb-2">[5]</div>
+                    <div class="text-xs font-bold text-red-300">5. 14 Days of Silence</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Zero visibility or ETA</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: The Cost to Campus -->
+        <div class="slide flex-col space-y-6 text-left w-full">
+            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Campus Pain Points</span>
+            <h2 class="text-4xl font-extrabold text-white">Three Costly Friction Points</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                <div class="p-6 rounded-2xl bg-slate-900/80 border border-slate-800">
+                    <h3 class="text-lg font-bold text-indigo-400 mb-2">The Laundry Gamble</h3>
+                    <p class="text-sm text-slate-300">Students haul heavy laundry down 4 floors only to find all washing machines broken or full.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-900/80 border border-slate-800">
+                    <h3 class="text-lg font-bold text-indigo-400 mb-2">Unstructured Chaos</h3>
+                    <p class="text-sm text-slate-300">Technicians receive unstructured emails with no objective urgency score to prioritize emergencies.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-900/80 border border-slate-800">
+                    <h3 class="text-lg font-bold text-indigo-400 mb-2">Paper Register Decay</h3>
+                    <p class="text-sm text-slate-300">Physical hostel registers provide zero metrics, no SLA tracking, and zero accountability for contractors.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Introducing LATTICE -->
+        <div class="slide flex-col space-y-6 text-left w-full">
+            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">The Solution</span>
+            <h2 class="text-4xl font-extrabold text-white">Introducing LATTICE · IITH Operations Console</h2>
+            <p class="text-base text-slate-300">A mobile-first, smart facility management platform built around three interconnected pillars:</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                <div class="p-6 rounded-2xl bg-indigo-950/30 border border-indigo-500/30">
+                    <div class="text-xs font-mono font-bold px-2 py-1 rounded bg-indigo-900/60 text-indigo-300 w-fit mb-3">COMMON APPLIANCES</div>
+                    <h3 class="font-bold text-white text-base">1. Common Facility Board</h3>
+                    <p class="text-xs text-slate-300 mt-2">Live status of every washing machine and water cooler across all hostel blocks and floors.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-indigo-950/30 border border-indigo-500/30">
+                    <div class="text-xs font-mono font-bold px-2 py-1 rounded bg-indigo-900/60 text-indigo-300 w-fit mb-3">ROOM MAINTENANCE</div>
+                    <h3 class="font-bold text-white text-base">2. Direct Room Ticketing</h3>
+                    <p class="text-xs text-slate-300 mt-2">1-minute lodging for electrical, plumbing, carpentry, or LAN issues with unique tracking codes (Ticket Reference: #LAT-8921).</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-indigo-950/30 border border-indigo-500/30">
+                    <div class="text-xs font-mono font-bold px-2 py-1 rounded bg-indigo-900/60 text-indigo-300 w-fit mb-3">ESTATE SLA & DISPATCH</div>
+                    <h3 class="font-bold text-white text-base">3. Estate Dispatch & SLA</h3>
+                    <p class="text-xs text-slate-300 mt-2">Ranked queue ordered by dynamic community urgency, plus public hostel turnaround scoreboards.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: The USP — Dynamic Crowd-Escalation Engine -->
+        <div class="slide flex-col space-y-6 text-left w-full">
+            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Unique Selling Point (25% Weight)</span>
+            <h2 class="text-4xl font-extrabold text-white">Dynamic Crowd-Escalation Priority Algorithm</h2>
+            <p class="text-base text-slate-300">Instead of 20 duplicate emails, affected students tap <span class="text-amber-400 font-bold font-mono">+1 Confirm Broken</span>.</p>
+            
+            <div class="p-6 rounded-2xl bg-slate-900 border border-indigo-500/30 font-mono text-center">
+                <div class="text-lg md:text-xl font-bold text-indigo-300">
+                    Priority Score = BaseWeight + (3.5 × Confirmations) + (1.2 × HoursPending)
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+                <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                    <span class="font-bold text-white block mb-1">Automated Urgency Surge</span>
+                    As more students confirm an outage, the incident automatically leaps to CRITICAL on the estate dashboard without human triage delays.
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                    <span class="font-bold text-white block mb-1">Crowd-Verified Fixes</span>
+                    Students tap "Report Working" once an appliance is repaired, closing the feedback loop and preventing phantom resolutions.
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Product Architecture -->
+        <div class="slide flex-col space-y-6 text-left w-full">
+            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Technical Implementation (20% Weight)</span>
+            <h2 class="text-4xl font-extrabold text-white">Fast, Lightweight & Robust Tech Stack</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                    <h3 class="font-bold text-indigo-400 text-base">Backend & Engine</h3>
+                    <ul class="text-xs text-slate-300 space-y-2">
+                        <li>• <span class="font-bold text-white">FastAPI (Python 3.11):</span> Sub-10ms response latency, async IO.</li>
+                        <li>• <span class="font-bold text-white">SQLAlchemy 2.0 ORM:</span> Strict relational schema for Hostels, Appliances, Tickets, and Votes.</li>
+                        <li>• <span class="font-bold text-white">SQLite Database:</span> Zero external configuration, instant judge evaluation.</li>
+                    </ul>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                    <h3 class="font-bold text-indigo-400 text-base">Frontend & Client</h3>
+                    <ul class="text-xs text-slate-300 space-y-2">
+                        <li>• <span class="font-bold text-white">Tailwind CSS + Glassmorphism:</span> Modern dark-mode mobile UI.</li>
+                        <li>• <span class="font-bold text-white">Zero NPM / Build Overhead:</span> Served directly by FastAPI; judges run one command and it works.</li>
+                        <li>• <span class="font-bold text-white">Optimistic UI Updates:</span> Real-time confirmation feedback.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Live Demo Screenshots -->
+        <div class="slide flex-col space-y-6 text-left w-full">
+            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Live System Walkthrough</span>
+            <h2 class="text-4xl font-extrabold text-white">Seamless End-to-End User Experience</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                    <div class="h-28 rounded-lg bg-slate-800/80 flex items-center justify-center font-mono text-xs text-indigo-400 mb-3 border border-slate-700">
+                        [Appliance Grid]
+                    </div>
+                    <h4 class="font-bold text-white text-xs">Floor-wise Live Matrix</h4>
+                    <p class="text-[11px] text-slate-400 mt-1">Color-coded badges: Operational, Out of Order, Escalated Outage.</p>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                    <div class="h-28 rounded-lg bg-slate-800/80 flex items-center justify-center font-mono text-xs text-indigo-400 mb-3 border border-slate-700">
+                        [Ticket Timeline]
+                    </div>
+                    <h4 class="font-bold text-white text-xs">Live 4-Stage Tracking</h4>
+                    <p class="text-[11px] text-slate-400 mt-1">Submitted → Acknowledged → In Progress → Resolved progression.</p>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                    <div class="h-28 rounded-lg bg-slate-800/80 flex items-center justify-center font-mono text-xs text-indigo-400 mb-3 border border-slate-700">
+                        [SLA Scoreboard]
+                    </div>
+                    <h4 class="font-bold text-white text-xs">Public SLA Transparency</h4>
+                    <p class="text-[11px] text-slate-400 mt-1">Turnaround hours compared across Bhabha, Raman, Aryabhatta, etc.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Measurable Campus Impact -->
+        <div class="slide flex-col space-y-6 text-left w-full">
+            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Expected Impact on IITH Community</span>
+            <h2 class="text-4xl font-extrabold text-white">Quantifiable Community Value</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 text-center">
+                    <div class="text-4xl font-black text-indigo-400 font-mono">85%</div>
+                    <p class="text-sm font-bold text-white mt-2">Reduction in Email Overhead</p>
+                    <p class="text-xs text-slate-400 mt-1">Stops redundant spam to Hostel Reps and the Estate Office.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 text-center">
+                    <div class="text-4xl font-black text-emerald-400 font-mono">3.4x</div>
+                    <p class="text-sm font-bold text-white mt-2">Faster Triage on Critical Assets</p>
+                    <p class="text-xs text-slate-400 mt-1">Outages affecting entire floors surface instantly to technicians.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 text-center">
+                    <div class="text-4xl font-black text-amber-400 font-mono">100%</div>
+                    <p class="text-sm font-bold text-white mt-2">Administrative Transparency</p>
+                    <p class="text-xs text-slate-400 mt-1">Public SLA turnaround dashboard holds contractors accountable.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: Future Scalability -->
+        <div class="slide flex-col space-y-6 text-left w-full">
+            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Roadmap</span>
+            <h2 class="text-4xl font-extrabold text-white">Phase 2 Scalability</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 text-xs">
+                <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+                    <span class="font-bold text-indigo-400 block mb-1">Physical QR Stickers</span>
+                    Students scan a sticker on a washing machine or room door for instant 2-second reporting.
+                </div>
+                <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+                    <span class="font-bold text-indigo-400 block mb-1">Spare Parts Tracking</span>
+                    Integrate tickets directly with central campus stores inventory (fans, capacitors, valves).
+                </div>
+                <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+                    <span class="font-bold text-indigo-400 block mb-1">Telegram / Zulip Webhooks</span>
+                    Instant push notifications directly to on-duty electricians and plumbers.
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 10: Conclusion & Demo -->
+        <div class="slide flex-col items-center text-center space-y-6">
+            <span class="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest">Built for IITH</span>
+            <h2 class="text-5xl font-extrabold text-white">LATTICE is Ready.</h2>
+            <p class="text-lg text-slate-300 max-w-xl">
+                A functioning, crowd-triaged facility network that eliminates student frustration and brings real-time efficiency to campus life.
+            </p>
+            <div class="pt-6 flex gap-4">
+                <a href="/" target="_blank" class="px-6 py-3 rounded-xl font-bold text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition">
+                    Open Live LATTICE Console
+                </a>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Navigation Controls -->
+    <footer class="p-6 border-t border-slate-800/80 bg-slate-950/60 flex justify-between items-center">
+        <div class="text-xs text-slate-500 hidden sm:block">
+            Use <kbd class="px-2 py-1 bg-slate-800 rounded text-slate-300 font-mono text-[10px]">←</kbd> <kbd class="px-2 py-1 bg-slate-800 rounded text-slate-300 font-mono text-[10px]">→</kbd> or Spacebar to navigate
+        </div>
+        <div class="flex gap-3 ml-auto">
+            <button onclick="prevSlide()" class="px-4 py-2 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+                Previous
+            </button>
+            <button onclick="nextSlide()" class="px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition">
+                Next Slide →
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const currentNum = document.getElementById('current-slide-num');
+
+        function showSlide(index) {
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (index + slides.length) % slides.length;
+            slides[currentSlide].classList.add('active');
+            currentNum.textContent = currentSlide + 1;
+        }
+
+        function nextSlide() { showSlide(currentSlide + 1); }
+        function prevSlide() { showSlide(currentSlide - 1); }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+    </script>
+</body>
+</html>

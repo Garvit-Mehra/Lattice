@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LATTICE · IITH Operations Console — Field Operations</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=20260927_10">
+    <style>
+        .duty-glow {
+            box-shadow: 0 0 8px #10b981;
+        }
+        .touch-target {
+            min-height: 48px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#020617] text-[#f8fafc] antialiased selection:bg-amber-500 selection:text-slate-950">
+
+    <!-- Screen A: Technician Login Screen (Overlaid when unauthenticated) -->
+    <div id="login-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+        <div class="bg-[#0f172a] border border-slate-800 rounded-2xl max-w-md w-full p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 mx-auto flex items-center justify-center shadow-lg text-2xl">
+                    <span class="font-mono font-bold text-xs text-amber-400">DUTY</span>
+                </div>
+                <h2 class="text-xl font-black tracking-tight text-white uppercase">LATTICE · IITH Operations Console</h2>
+                <p class="text-xs text-[#94a3b8]">Campus Maintenance & Duty Gateway</p>
+                <div class="inline-block px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-amber-950/60 text-amber-300 border border-amber-700">
+                    Field Access Guard
+                </div>
+            </div>
+
+            <div id="login-error" class="hidden p-3 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-300 text-xs"></div>
+
+            <form id="tech-login-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Username</label>
+                    <input type="text" id="tech-username" value="technician" placeholder="e.g. technician" class="w-full bg-[#020617] border border-slate-700 text-xs text-white rounded-lg p-3 outline-none focus:border-amber-500 font-mono" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+                    <input type="password" id="tech-password" value="tech123" placeholder="••••••••" class="w-full bg-[#020617] border border-slate-700 text-xs text-white rounded-lg p-3 outline-none focus:border-amber-500 font-mono" required>
+                </div>
+                <button type="submit" id="btn-login-submit" class="w-full touch-target rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20 transition-colors flex items-center justify-center">
+                    Sign In to Duty Console
+                </button>
+            </form>
+
+            <div class="pt-4 border-t border-slate-800">
+                <p class="text-[11px] text-[#94a3b8] text-center mb-2 font-mono uppercase tracking-wider font-semibold">Fast Demo 1-Click Auth</p>
+                <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <button onclick="fillDemoTech('technician', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
+                        <span class="font-bold text-white">General Tech</span><br>
+                        <span class="text-[10px] text-slate-400">technician</span>
+                    </button>
+                    <button onclick="fillDemoTech('tech_electrical', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
+                        <span class="font-bold text-white">Electrical</span><br>
+                        <span class="text-[10px] text-slate-400">tech_electrical</span>
+                    </button>
+                    <button onclick="fillDemoTech('tech_plumbing', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
+                        <span class="font-bold text-white">Plumbing</span><br>
+                        <span class="text-[10px] text-slate-400">tech_plumbing</span>
+                    </button>
+                    <button onclick="fillDemoTech('tech_carpentry', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
+                        <span class="font-bold text-white">Carpentry</span><br>
+                        <span class="text-[10px] text-slate-400">tech_carpentry</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-center pt-2">
+                <a href="http://localhost:8000/" class="text-xs text-indigo-400 hover:underline">← Go to Student Portal (Public / No Login)</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen B: Main Technician Workspace Header -->
+    <header class="border-b border-slate-800 bg-[#020617]/90 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="font-black text-lg text-white tracking-tight"><span class="font-mono font-bold text-xs text-amber-400">DUTY</span> LATTICE · IITH Operations Console</span>
+                    <span class="text-slate-600">|</span>
+                    <div class="flex items-center gap-2 text-xs font-mono">
+                        <span class="text-slate-400">Tech:</span>
+                        <span id="nav-tech-name" class="font-bold text-white">Ramesh Sharma</span>
+                        <span id="nav-tech-spec" class="px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 text-[10px] uppercase font-bold">ELECTRICAL</span>
+                        <span class="flex items-center gap-1 text-[11px] text-emerald-400 font-semibold pl-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 duty-glow"></span>
+                            <span>ON DUTY</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Switcher with Counter Badges -->
+            <nav class="flex items-center gap-2 bg-[#0f172a] p-1.5 rounded-xl border border-slate-800">
+                <button id="tab-btn-appliances" onclick="switchTechTab('appliances')" class="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 shadow-sm transition">
+                    <span>Common Appliances</span>
+                    <span id="badge-faulty-count" class="bg-rose-500 text-white text-[11px] font-mono px-1.5 py-0.5 rounded-full ml-1.5">0</span>
+                </button>
+                <button id="tab-btn-rooms" onclick="switchTechTab('rooms')" class="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">
+                    <span>Room Maintenance</span>
+                    <span id="badge-room-count" class="bg-rose-500 text-white text-[11px] font-mono px-1.5 py-0.5 rounded-full ml-1.5">0</span>
+                </button>
+            </nav>
+
+            <!-- Cross Navigation & Logout -->
+            <div class="flex items-center gap-2.5">
+                <a href="http://localhost:8000/" target="_blank" class="px-2.5 py-1.5 rounded-lg text-xs font-mono text-[#94a3b8] hover:text-white hover:bg-slate-800 transition">
+                    [Student Web]
+                </a>
+                <a href="http://localhost:8002/" target="_blank" class="px-2.5 py-1.5 rounded-lg text-xs font-mono text-[#94a3b8] hover:text-white hover:bg-slate-800 transition">
+                    [Admin Console]
+                </a>
+                <button onclick="techLogout()" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-950/40 border border-rose-900 transition">
+                    Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- ================================================= -->
+        <!-- TAB 1: COMMON APPLIANCES BREAKDOWN LIST -->
+        <!-- ================================================= -->
+        <section id="view-tech-appliances" class="space-y-6">
+            <!-- Filter Bar -->
+            <div class="bg-[#0f172a] rounded-xl border border-slate-800 p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto text-xs">
+                    <span class="font-mono text-slate-400 uppercase font-bold">FILTERS:</span>
+                    
+                    <!-- Hostel Filter -->
+                    <select id="tech-app-hostel-filter" onchange="loadFaultyAppliances()" class="bg-[#020617] border border-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:border-amber-500 font-medium">
+                        <option value="">All 21 Hostels</option>
+                    </select>
+
+                    <!-- Type Filter -->
+                    <select id="tech-app-type-filter" onchange="loadFaultyAppliances()" class="bg-[#020617] border border-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:border-amber-500 font-medium">
+                        <option value="">All Appliance Types</option>
+                        <option value="washing_machine">Washing Machines</option>
+                        <option value="water_cooler">Water Coolers</option>
+                    </select>
+
+                    <!-- Sort -->
+                    <select id="tech-app-sort" onchange="loadFaultyAppliances()" class="bg-[#020617] border border-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:border-amber-500 font-medium">
+                        <option value="priority">Sort: Highest Priority</option>
+                        <option value="confirmations">Sort: Most Confirmations</option>
+                    </select>
+                </div>
+
+                <button onclick="loadFaultyAppliances()" class="px-3.5 py-2 rounded-lg text-xs font-mono font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                    ↻ Refresh Queue
+                </button>
+            </div>
+
+            <!-- Faulty Appliance List Container -->
+            <div id="tech-appliances-list" class="space-y-4">
+                <!-- Dynamically populated -->
+            </div>
+        </section>
+
+        <!-- ================================================= -->
+        <!-- TAB 2: ROOM MAINTENANCE QUERIES (2-STEP VERIFICATION) -->
+        <!-- ================================================= -->
+        <section id="view-tech-rooms" class="hidden space-y-6">
+            <!-- 2-Step Policy Banner -->
+            <div class="p-3.5 rounded-xl bg-amber-950/40 border border-amber-700/80 flex items-center gap-3">
+                <span class="font-mono text-xs font-bold text-amber-400">[POLICY]</span>
+                <p class="text-xs text-amber-200 font-mono">
+                    <span class="font-bold text-amber-300">2-STEP POLICY:</span> Marking a room job completed does not close it. Resident verification is required for SLA sign-off.
+                </p>
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="bg-[#0f172a] rounded-xl border border-slate-800 p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto text-xs">
+                    <span class="font-mono text-slate-400 uppercase font-bold">FILTERS:</span>
+                    
+                    <!-- Status Filter -->
+                    <select id="tech-room-status-filter" onchange="loadRoomTickets()" class="bg-[#020617] border border-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:border-amber-500 font-medium">
+                        <option value="active">All Active</option>
+                        <option value="awaiting_verification">Step 1 Done (Awaiting Resident)</option>
+                        <option value="resolved">Fully Resolved</option>
+                        <option value="all">All Statuses</option>
+                    </select>
+
+                    <!-- Category Filter -->
+                    <select id="tech-room-category-filter" onchange="loadRoomTickets()" class="bg-[#020617] border border-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:border-amber-500 font-medium">
+                        <option value="">All Categories</option>
+                        <option value="electrical">Electrical</option>
+                        <option value="plumbing">Plumbing</option>
+                        <option value="appliance">Appliance</option>
+                        <option value="civil">Furniture / Civil</option>
+                        <option value="network">LAN / Network</option>
+                    </select>
+
+                    <!-- Hostel Filter -->
+                    <select id="tech-room-hostel-filter" onchange="loadRoomTickets()" class="bg-[#020617] border border-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:border-amber-500 font-medium">
+                        <option value="">All Hostels</option>
+                    </select>
+                </div>
+
+                <button onclick="loadRoomTickets()" class="px-3.5 py-2 rounded-lg text-xs font-mono font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                    ↻ Refresh
+                </button>
+            </div>
+
+            <!-- Room Ticket Cards Container -->
+            <div id="tech-rooms-list" class="space-y-4">
+                <!-- Dynamically populated -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal: Mark Work Completed (Step 1) -->
+    <div id="modal-room-complete" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-4">
+        <div class="bg-[#0f172a] border border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                    <h3 class="font-bold text-white text-sm">Step 1: Mark Work Completed</h3>
+                    <p id="modal-room-ticket-sub" class="text-xs font-mono text-slate-400">Ticket Reference: #LAT-8921</p>
+                </div>
+                <button onclick="closeModalRoomComplete()" class="text-slate-400 hover:text-white text-base">X</button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Work Performed Description (Required)</label>
+                    <textarea id="modal-tech-notes" rows="3" placeholder="e.g. Replaced 5-speed regulator capacitor & checked all speed settings. Working normally." class="w-full bg-[#020617] border border-slate-700 text-xs text-white rounded-lg p-3 outline-none focus:border-amber-500 placeholder-slate-500" required></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Replacement Parts Used (Optional Chips)</label>
+                    <div class="flex flex-wrap gap-1.5" id="chip-parts-container">
+                        <button type="button" onclick="togglePartChip(this, 'Capacitor')" class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-800 text-slate-300 border border-slate-700 hover:border-amber-500">Capacitor</button>
+                        <button type="button" onclick="togglePartChip(this, 'Ballast/Choke')" class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-800 text-slate-300 border border-slate-700 hover:border-amber-500">Ballast/Choke</button>
+                        <button type="button" onclick="togglePartChip(this, 'Tap Spindle')" class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-800 text-slate-300 border border-slate-700 hover:border-amber-500">Tap Spindle</button>
+                        <button type="button" onclick="togglePartChip(this, 'Switch 6A/16A')" class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-800 text-slate-300 border border-slate-700 hover:border-amber-500">Switch 6A/16A</button>
+                        <button type="button" onclick="togglePartChip(this, 'Drain Pipe')" class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-800 text-slate-300 border border-slate-700 hover:border-amber-500">Drain Pipe</button>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-lg bg-amber-950/40 border border-amber-800/60 text-[11px] text-amber-300 font-mono space-y-1">
+                    <div>[SMS] <b>SMS Notification Trigger:</b> Automated SMS will be immediately dispatched to the resident's mobile number so they do not forget to confirm.</div>
+                    <div class="text-[10px] text-amber-400/80">[Note] Shifts status to <b>awaiting_student_verification</b>. Ticket stays on duty until resident verifies.</div>
+                </div>
+
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button onclick="closeModalRoomComplete()" class="px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800 transition">Cancel</button>
+                <button onclick="submitRoomWorkComplete()" class="touch-target px-5 py-2 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-colors flex items-center justify-center">
+                    Confirm Work Done & Notify Resident
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Mark Appliance Repaired -->
+    <div id="modal-appliance-status" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-4">
+        <div class="bg-[#0f172a] border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                    <h3 id="modal-app-title" class="font-bold text-white text-sm">Mark Appliance Repaired</h3>
+                    <p id="modal-app-sub" class="text-xs text-slate-400 font-mono">Hostel & Location</p>
+                </div>
+                <button onclick="closeModalAppStatus()" class="text-slate-400 hover:text-white text-base">X</button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Resolution Tag (Required)</label>
+                    <div class="grid grid-cols-2 gap-2" id="resolution-tags-container">
+                        <button type="button" onclick="selectResolutionTag(this, 'Filter cleaned')" class="res-tag-btn p-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-left text-slate-300 hover:border-amber-500">
+                            Filter cleaned
+                        </button>
+                        <button type="button" onclick="selectResolutionTag(this, 'Capacitor replaced')" class="res-tag-btn p-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-left text-slate-300 hover:border-amber-500">
+                            Capacitor replaced
+                        </button>
+                        <button type="button" onclick="selectResolutionTag(this, 'Motor overhauled')" class="res-tag-btn p-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-left text-slate-300 hover:border-amber-500">
+                            Motor overhauled
+                        </button>
+                        <button type="button" onclick="selectResolutionTag(this, 'Power supply fixed')" class="res-tag-btn p-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-left text-slate-300 hover:border-amber-500">
+                            Power supply fixed
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Technician Notes</label>
+                    <textarea id="modal-app-notes" rows="2" placeholder="Describe actions taken before restoring operational status." class="w-full bg-[#020617] border border-slate-700 text-xs text-white rounded-lg p-2.5 outline-none focus:border-amber-500 placeholder-slate-500"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button onclick="closeModalAppStatus()" class="px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800 transition">Cancel</button>
+                <button onclick="submitAppStatusUpdate()" class="touch-target px-5 py-2 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-colors flex items-center justify-center">
+                    Restore Operational
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technician JS Script -->
+    <script src="/static/tech.js?v=20260927_12"></script>
+</body>
+</html>

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LATTICE · IITH Operations Console — IIT Hyderabad Estate Office</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=20260927_10">
+    <style>
+        .dense-table th {
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #475569;
+            background-color: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .dense-table td {
+            padding: 8px 12px;
+            font-size: 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#F1F5F9] text-slate-900 antialiased selection:bg-rose-600 selection:text-white">
+
+    <!-- Screen A: Super-Admin Login Modal (Overlaid when unauthenticated) -->
+    <div id="admin-login-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 mx-auto flex items-center justify-center shadow-sm text-2xl">
+                    <span class="font-mono font-bold text-xs text-rose-700">ADMIN</span>
+                </div>
+                <h2 class="text-xl font-black tracking-tight text-slate-900 uppercase">LATTICE · IITH Operations Console</h2>
+                <p class="text-xs text-slate-500">IIT Hyderabad Dean of Infrastructure & Estate Governance</p>
+                <div class="inline-block px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                    Estate Super-Admin Authentication
+                </div>
+            </div>
+
+            <div id="admin-login-error" class="hidden p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs"></div>
+
+            <form id="admin-login-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Administrator Username</label>
+                    <input type="text" id="admin-username" value="admin" placeholder="e.g. admin" class="w-full bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-lg p-3 outline-none focus:border-rose-500 font-mono" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                    <input type="password" id="admin-password" value="admin123" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-lg p-3 outline-none focus:border-rose-500 font-mono" required>
+                </div>
+                <button type="submit" id="btn-admin-login-submit" class="w-full py-3 px-4 rounded-xl font-bold text-xs bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-600/20 transition-colors">
+                    Sign In to Operations Console
+                </button>
+            </form>
+
+            <div class="pt-4 border-t border-slate-100">
+                <p class="text-[11px] text-slate-500 text-center mb-2 font-mono uppercase tracking-wider font-semibold">1-Click Fast Auth</p>
+                <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <button onclick="fillDemoAdmin('admin', 'admin123')" class="p-2.5 rounded-lg bg-slate-50 border border-slate-200 hover:border-rose-400 hover:bg-rose-50/40 text-slate-700 text-left transition-colors">
+                        <span class="font-bold text-slate-900">Super Admin</span><br>
+                        <span class="text-[10px] text-slate-500">admin</span>
+                    </button>
+                    <button onclick="fillDemoAdmin('estate_admin', 'admin123')" class="p-2.5 rounded-lg bg-slate-50 border border-slate-200 hover:border-rose-400 hover:bg-rose-50/40 text-slate-700 text-left transition-colors">
+                        <span class="font-mono font-bold text-xs text-rose-700">ADMIN</span> <span class="font-bold text-slate-900">Estate Office</span><br>
+                        <span class="text-[10px] text-slate-500">estate_admin</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-center pt-2">
+                <a href="http://localhost:8000/" class="text-xs text-indigo-600 hover:underline">← Go to Student Portal (Public / No Login)</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen B: Main Operations Console Header -->
+    <header class="border-b border-slate-200 bg-white/95 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="font-black text-lg text-slate-900 tracking-tight"><span class="font-mono font-bold text-xs text-rose-700">ADMIN</span> LATTICE · IITH Operations Console</span>
+                    <span class="text-slate-300">|</span>
+                    <span class="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                        ESTATE GOVERNANCE
+                    </span>
+                </div>
+            </div>
+
+            <!-- Segmented Control Tab Switcher -->
+            <nav class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button id="admin-tab-btn-dashboard" onclick="switchAdminTab('dashboard')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-sm border border-slate-200 transition">
+                    <span>Campus SLA & KPIs</span>
+                </button>
+                <button id="admin-tab-btn-tickets" onclick="switchAdminTab('tickets')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+                    <span>Master Ticket Control</span>
+                    <span id="badge-total-tickets" class="bg-rose-500 text-white text-[11px] font-mono px-1.5 py-0.2 rounded-full">0</span>
+                </button>
+                <button id="admin-tab-btn-appliances" onclick="switchAdminTab('appliances')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+                    <span>279 Appliances Matrix</span>
+                </button>
+            </nav>
+
+            <!-- Quick Actions & Links -->
+            <div class="flex items-center gap-2.5">
+                <button onclick="reseedDatabase()" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition shadow-xs" title="Reseed sample incidents">
+                    Reseed Demo Data
+                </button>
+                <a href="http://localhost:8000/" target="_blank" class="hidden md:inline-block px-2.5 py-1.5 rounded-lg text-xs font-mono text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
+                    [Student Web]
+                </a>
+                <a href="http://localhost:8001/" target="_blank" class="hidden md:inline-block px-2.5 py-1.5 rounded-lg text-xs font-mono text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
+                    [Tech Ops]
+                </a>
+                <button onclick="adminLogout()" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 transition">
+                    Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- ================================================= -->
+        <!-- TAB 1: CAMPUS SLA & ANALYTICS -->
+        <!-- ================================================= -->
+        <section id="view-admin-dashboard" class="space-y-6">
+            <!-- Quad Strip Metric Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-xs">
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider font-mono">Active Incidents</p>
+                    <div class="mt-2 text-3xl font-black font-mono text-slate-900" id="stat-active-tickets">--</div>
+                    <p class="text-[11px] text-slate-500 mt-1">Appliances & Room Complaints</p>
+                </div>
+                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-xs">
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider font-mono">Urgent Hazards</p>
+                    <div class="mt-2 text-3xl font-black font-mono text-rose-600" id="stat-critical-tickets">--</div>
+                    <p class="text-[11px] text-slate-500 mt-1">Priority score escalated >80</p>
+                </div>
+                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-xs">
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider font-mono">Appliance Health</p>
+                    <div class="mt-2 text-3xl font-black font-mono text-emerald-600" id="stat-operational-pct">--%</div>
+                    <p class="text-[11px] text-slate-500 mt-1">Operational across 279 units</p>
+                </div>
+                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-xs">
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider font-mono">Avg SLA Turnaround</p>
+                    <div class="mt-2 text-3xl font-black font-mono text-amber-600" id="stat-avg-resolution">-- hrs</div>
+                    <p class="text-[11px] text-slate-500 mt-1">Campus resolution target: 8.0h</p>
+                </div>
+            </div>
+
+            <!-- High-Density 21-Hostel SLA Scoreboard Table -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+                <div class="p-5 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 tracking-tight">Hostel Turnaround SLA Governance (21 Blocks)</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Continuous tracking of mean time to resolution and active load per residential block.</p>
+                    </div>
+                    <button onclick="loadDashboardStats()" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
+                        ↻ Refresh Scoreboard
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left dense-table border-collapse">
+                        <thead>
+                            <tr>
+                                <th>Hostel Block</th>
+                                <th>Floor Range</th>
+                                <th class="text-center">Active Open</th>
+                                <th class="text-center">Resolved</th>
+                                <th class="text-center">Avg SLA</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-sla-table-body">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================= -->
+        <!-- TAB 2: MASTER TICKET CONTROL (SUPER-ADMIN OVERRIDES) -->
+        <!-- ================================================= -->
+        <section id="view-admin-tickets" class="hidden space-y-6">
+            <!-- Filter Bar -->
+            <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto text-xs">
+                    <span class="font-mono text-slate-500 uppercase font-bold">FILTERS:</span>
+                    
+                    <!-- Ticket Type Filter -->
+                    <select id="admin-ticket-type-filter" onchange="loadAdminTickets()" class="bg-slate-50 border border-slate-300 text-xs text-slate-800 rounded-lg px-3 py-2 outline-none focus:border-rose-500 font-medium">
+                        <option value="">All Ticket Types</option>
+                        <option value="room">Room Maintenance</option>
+                        <option value="appliance">Common Facilities</option>
+                    </select>
+
+                    <!-- Status Filter -->
+                    <select id="admin-ticket-status-filter" onchange="loadAdminTickets()" class="bg-slate-50 border border-slate-300 text-xs text-slate-800 rounded-lg px-3 py-2 outline-none focus:border-rose-500 font-medium">
+                        <option value="all">All Statuses</option>
+                        <option value="active" selected>Active Only</option>
+                        <option value="awaiting_verification">Awaiting Student Verification</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+
+                    <!-- Hostel Filter -->
+                    <select id="admin-ticket-hostel-filter" onchange="loadAdminTickets()" class="bg-slate-50 border border-slate-300 text-xs text-slate-800 rounded-lg px-3 py-2 outline-none focus:border-rose-500 font-medium">
+                        <option value="">All 21 Hostels</option>
+                    </select>
+                </div>
+
+                <button onclick="loadAdminTickets()" class="px-3.5 py-2 rounded-lg text-xs font-mono font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition">
+                    ↻ Refresh Queue
+                </button>
+            </div>
+
+            <!-- Master Ticket Control Table Container -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left dense-table border-collapse">
+                        <thead>
+                            <tr>
+                                <th>REF ID</th>
+                                <th>LOCATION</th>
+                                <th>CATEGORY</th>
+                                <th>ISSUE SUMMARY</th>
+                                <th>STATUS</th>
+                                <th>ASSIGNED</th>
+                                <th class="text-right">OVERRIDES</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-tickets-table-body">
+                            <!-- Dynamically populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="admin-tickets-empty" class="hidden p-12 text-center text-slate-500 text-sm">
+                    <span class="font-mono text-xs font-bold text-slate-400">[TICKETS]</span>
+                    <p class="font-bold text-slate-800 mt-2">No tickets match the selected filter criteria.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================= -->
+        <!-- TAB 3: 279 APPLIANCES INFRASTRUCTURE MATRIX -->
+        <!-- ================================================= -->
+        <section id="view-admin-appliances" class="hidden space-y-6">
+            <!-- Filter Bar -->
+            <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto text-xs">
+                    <span class="font-mono text-slate-500 uppercase font-bold">FILTERS:</span>
+
+                    <!-- Hostel Filter -->
+                    <select id="admin-app-hostel-filter" onchange="loadAdminAppliances()" class="bg-slate-50 border border-slate-300 text-xs text-slate-800 rounded-lg px-3 py-2 outline-none focus:border-rose-500 font-medium">
+                        <option value="">All 21 Hostels</option>
+                    </select>
+
+                    <!-- Type Filter -->
+                    <select id="admin-app-type-filter" onchange="loadAdminAppliances()" class="bg-slate-50 border border-slate-300 text-xs text-slate-800 rounded-lg px-3 py-2 outline-none focus:border-rose-500 font-medium">
+                        <option value="">All Appliance Types</option>
+                        <option value="washing_machine">Washing Machines</option>
+                        <option value="water_cooler">Water Coolers</option>
+                    </select>
+
+                    <!-- Status Filter -->
+                    <select id="admin-app-status-filter" onchange="loadAdminAppliances()" class="bg-slate-50 border border-slate-300 text-xs text-slate-800 rounded-lg px-3 py-2 outline-none focus:border-rose-500 font-medium">
+                        <option value="">All Statuses</option>
+                        <option value="operational">Operational Only</option>
+                        <option value="faulty">Faulty Only</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="out_of_order">Out of Order</option>
+                    </select>
+                </div>
+
+                <button onclick="loadAdminAppliances()" class="px-3.5 py-2 rounded-lg text-xs font-mono font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition">
+                    ↻ Refresh Matrix
+                </button>
+            </div>
+
+            <!-- 4-Column Card Grid -->
+            <div id="admin-appliances-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal 1: Super-Admin Force Resolve Confirmation (Mandatory Justification Code) -->
+    <div id="modal-force-resolve" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-xs p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-xs font-bold text-rose-600">[OVERRIDE]</span>
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-sm">Force Resolve Ticket</h3>
+                        <p id="modal-force-resolve-code" class="text-xs font-mono text-slate-500">Ticket Reference: #LAT-8921</p>
+                    </div>
+                </div>
+                <button onclick="closeModalForceResolve()" class="text-slate-400 hover:text-slate-600 text-base">X</button>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-1">
+                <p class="font-bold">[Executive Override Action]:</p>
+                <p>This action bypasses the 2-step student verification requirement, marks the ticket as fully resolved, and restores any attached common facility appliance back to operational status.</p>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Administrative Justification Code (Required)</label>
+                    <select id="force-resolve-reason-code" class="w-full bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-rose-500 font-medium" required>
+                        <option value="Student confirmed verbally">Student confirmed verbally</option>
+                        <option value="Resident absent from campus >48h">Resident absent from campus >48h</option>
+                        <option value="Inspected & certified by Estate Officer">Inspected & certified by Estate Officer</option>
+                        <option value="Duplicate/Spam ticket">Duplicate/Spam ticket</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Additional Estate Officer Notes (Optional)</label>
+                    <textarea id="force-resolve-notes" rows="2" placeholder="e.g. Physically inspected on site by JE Maintenance." class="w-full bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-rose-500 placeholder-slate-400"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button onclick="closeModalForceResolve()" class="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                <button onclick="submitForceResolve()" class="px-5 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition">
+                    Confirm Force Resolve & Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Super-Admin Edit / Override Ticket -->
+    <div id="modal-ticket-override" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-xs p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-sm">Super-Admin Ticket Override</h3>
+                    <p id="modal-override-ticket-code" class="text-xs font-mono text-slate-500">Ticket Reference: #LAT-8921</p>
+                </div>
+                <button onclick="closeModalOverride()" class="text-slate-400 hover:text-slate-600 text-base">X</button>
+            </div>
+
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Status Override</label>
+                        <select id="override-status-select" class="w-full bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-rose-500">
+                            <option value="submitted">Submitted</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="awaiting_student_verification">Awaiting Student Verification</option>
+                            <option value="resolved">Force Resolved</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Priority Override</label>
+                        <select id="override-priority-select" class="w-full bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-rose-500">
+                            <option value="KEEP">Keep Computed Dynamic Score</option>
+                            <option value="CRITICAL">Force CRITICAL (95.0)</option>
+                            <option value="HIGH">Force HIGH (75.0)</option>
+                            <option value="MEDIUM">Force MEDIUM (50.0)</option>
+                            <option value="LOW">Force LOW (20.0)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Assign Technician</label>
+                    <input type="text" id="override-tech-name" placeholder="e.g. Ramesh Sharma (Electrical)" class="w-full bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-rose-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Override Reason / Administrative Note</label>
+                    <textarea id="override-reason" rows="2" placeholder="e.g. Verified by Estate Office inspection officer on site." class="w-full bg-slate-50 border border-slate-300 text-xs text-slate-900 rounded-lg p-2.5 outline-none focus:border-rose-500 placeholder-slate-400" required></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                <button onclick="adminDeleteCurrentTicket()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition">
+                    Delete Ticket
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeModalOverride()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition">Cancel</button>
+                    <button onclick="submitTicketOverride()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition">
+                        Apply Override
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin JS Script -->
+    <script src="/static/admin.js?v=20260927_11"></script>
+</body>
+</html>
