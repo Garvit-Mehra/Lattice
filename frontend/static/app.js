@@ -17,16 +17,82 @@ try {
     // Storage restricted
 }
 
+// Toast notification system
+function showToast(message, type = "info", duration = 4000) {
+    let container = document.getElementById("toast-container");
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "toast-container";
+        container.className = "fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none";
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement("div");
+    const colors = {
+        success: "bg-emerald-900/90 text-emerald-100 border-emerald-700",
+        error: "bg-rose-900/90 text-rose-100 border-rose-700",
+        warning: "bg-amber-900/90 text-amber-100 border-amber-700",
+        info: "bg-slate-900/90 text-slate-100 border-slate-700"
+    };
+
+    const colorClass = colors[type] || colors.info;
+    toast.className = `${colorClass} border px-4 py-2.5 rounded-xl shadow-xl text-xs font-medium flex items-center gap-2 pointer-events-auto transition-all transform duration-300 opacity-0 translate-y-2 backdrop-blur-md`;
+    toast.innerHTML = `
+        <span class="w-2 h-2 rounded-full ${type === 'success' ? 'bg-emerald-400' : type === 'error' ? 'bg-rose-400' : type === 'warning' ? 'bg-amber-400' : 'bg-blue-400'}"></span>
+        <span>${message}</span>
+    `;
+
+    container.appendChild(toast);
+    requestAnimationFrame(() => {
+        toast.classList.remove("opacity-0", "translate-y-2");
+        toast.classList.add("opacity-100", "translate-y-0");
+    });
+
+    setTimeout(() => {
+        toast.classList.add("opacity-0", "translate-y-2");
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
 let currentTab = "facilities";
 let currentHostels = [];
 let selectedHostelId = 16;
 let selectedFloor = 1;
 
 function bootstrap() {
+    updateCrossPortalLinks();
     initTabs();
     loadHostels();
     loadAppliances();
     loadSLAStats();
+}
+
+// Dynamic Cross-Portal Navigation Links & Single-Port Handling
+function updateCrossPortalLinks() {
+    const isMultiPort = window.location.port === "8001" || window.location.port === "8002";
+    const isSinglePort = !isMultiPort;
+    const techLink = document.getElementById("nav-link-tech");
+    const adminLink = document.getElementById("nav-link-admin");
+    const presLink = document.getElementById("nav-link-presentation");
+
+    if (techLink) {
+        techLink.href = isSinglePort ? "/tech" : `//${window.location.hostname}:8001/`;
+    }
+    if (adminLink) {
+        adminLink.href = isSinglePort ? "/admin" : `//${window.location.hostname}:8002/`;
+    }
+    if (presLink) {
+        presLink.href = "/presentation";
+    }
+}
+
+// 1-Click Demo Ticket Quick-Fill Handler
+function setDemoLookup(ticketId) {
+    const input = document.getElementById("ticket-lookup-input");
+    if (input) {
+        input.value = ticketId.startsWith("#") ? ticketId : `#${ticketId}`;
+        lookupTicket();
+    }
 }
 
 if (document.readyState === "loading") {
@@ -475,7 +541,19 @@ function renderApplianceCard(app) {
             </div>
         `;
     } else {
-        statusPill = `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">● FAULTY</span>`;
+        const workingConfs = app.working_confirmations_count || 0;
+        const reqConfs = app.required_working_confirmations || 2;
+        if (workingConfs > 0) {
+            statusPill = `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-300">● VERIFYING FIX (${workingConfs}/${reqConfs})</span>`;
+        } else {
+            statusPill = `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">● ${app.status.toUpperCase().replace('_', ' ')}</span>`;
+        }
+
+        const reportWorkingLabel = workingConfs > 0 ? "Confirm Working" : "Report Working";
+        const workingBtnClass = workingConfs > 0 
+            ? "py-2 px-3 rounded-lg text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition flex items-center gap-1.5"
+            : "py-2 px-3 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition flex items-center gap-1.5";
+
         actionButtons = `
             <div class="mt-4 flex gap-2">
                 <button onclick="confirmBroken(${app.id})" 
@@ -484,9 +562,10 @@ function renderApplianceCard(app) {
                     <span class="bg-rose-700/60 px-1.5 py-0.2 rounded text-[10px] font-mono">${app.confirmations_count}</span>
                 </button>
                 <button onclick="reportWorking(${app.id})" 
-                    title="Confirm appliance is working again"
-                    class="py-2 px-3 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
-                    Report Working
+                    title="Confirm appliance is working again (${workingConfs}/${reqConfs} resident confirmations required)"
+                    class="${workingBtnClass}">
+                    <span>${reportWorkingLabel}</span>
+                    <span class="bg-slate-200/80 text-slate-800 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold">${workingConfs}/${reqConfs}</span>
                 </button>
             </div>
         `;
@@ -511,10 +590,15 @@ function renderApplianceCard(app) {
                 <!-- Crowd Confirmation Pill & Issue Details -->
                 ${isBroken ? `
                     <div class="mt-3 space-y-2">
-                        <div>
+                        <div class="flex flex-wrap items-center gap-1.5">
                             <span class="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold px-2 py-1 rounded-md inline-flex items-center gap-1.5 font-mono">
                                 ${app.confirmations_count} students confirmed broken
                             </span>
+                            ${(app.working_confirmations_count || 0) > 0 ? `
+                                <span class="bg-amber-50 border border-amber-300 text-amber-800 text-xs font-semibold px-2 py-1 rounded-md inline-flex items-center gap-1.5 font-mono">
+                                    ${app.working_confirmations_count}/${app.required_working_confirmations || 2} confirmed working
+                                </span>
+                            ` : ''}
                         </div>
                         <p class="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 italic">
                             "${app.issue_description || 'Defect reported by floor resident'}"
@@ -605,12 +689,20 @@ async function reportWorking(appId) {
             body: JSON.stringify({ user_token: userToken })
         });
 
+        const data = await res.json();
         if (res.ok) {
+            if (data.resolved) {
+                showToast(`Appliance verified fixed & restored to operational! (${data.working_confirmations}/${data.required_confirmations} resident consensus)`, "success", 4500);
+            } else {
+                showToast(data.message || `Confirmation recorded (${data.working_confirmations}/${data.required_confirmations}). Need 1 more resident to verify before it is restored.`, "info", 5000);
+            }
             await loadAppliances();
             await loadSLAStats();
+        } else {
+            showToast(data.detail || "You have already confirmed this issue or verification is pending.", "warning", 5000);
         }
     } catch (e) {
-        alert("Failed to submit report: " + e.message);
+        showToast("Failed to submit verification: " + e.message, "error");
     }
 }
 

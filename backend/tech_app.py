@@ -4,9 +4,12 @@ Dedicated portal for maintenance technicians to inspect water cooler/washing mac
 manage room maintenance complaints, and execute Step 1 of the 2-step verification.
 """
 import os
+import json
+import time
+import uuid
 import datetime
 from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, Header, Query
+from fastapi import FastAPI, Depends, HTTPException, Header, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
@@ -30,22 +33,65 @@ app = FastAPI(
     version="2.0.0"
 )
 
+# Explicit CORS Origins for Campus Security (PRA-SEC-002)
+ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://localhost:8001",
+    "http://localhost:8002",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:8001",
+    "http://127.0.0.1:8002",
+]
+env_origins = os.getenv("LATTICE_ALLOWED_ORIGINS")
+if env_origins:
+    ALLOWED_ORIGINS.extend([o.strip() for o in env_origins.split(",") if o.strip()])
+
+ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?|https?://.*\.iith\.ac\.in"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 @app.middleware("http")
-async def add_no_cache_headers(request, call_next):
+async def security_and_logging_middleware(request: Request, call_next):
+    """Structured request tracing (PRA-BE-002) and security headers (PRA-FE-001)."""
+    request_id = request.headers.get("x-request-id", f"req_{uuid.uuid4().hex[:8]}")
+    start_time = time.time()
+    
     response = await call_next(request)
+    
+    duration_ms = round((time.time() - start_time) * 1000, 2)
     path = request.url.path
+
+    # Security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["x-request-id"] = request_id
+
+    # Anti-caching for dynamic assets
     if path == "/" or path.endswith(".js") or path.endswith(".html") or path.endswith(".css"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+
+    # Structured logging for API requests
+    if path.startswith("/api/") and os.getenv("LATTICE_LOG_JSON", "0") == "1":
+        log_entry = {
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "request_id": request_id,
+            "method": request.method,
+            "path": path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms
+        }
+        print(json.dumps(log_entry))
+
     return response
 
 
@@ -68,8 +114,12 @@ def enrich_ticket_data(ticket: Ticket, now: datetime.datetime = None):
     if now is None:
         now = datetime.datetime.utcnow()
     if ticket.status != "resolved":
-        score, tier = calculate_priority(ticket.category, ticket.confirmations_count, ticket.created_at, now)
-        ticket.computed_priority = score
+        if getattr(ticket, "priority_overridden", False):
+            score = ticket.computed_priority
+            tier = "CRITICAL" if score >= 50.0 else ("HIGH" if score >= 35.0 else ("MEDIUM" if score >= 22.0 else "LOW"))
+        else:
+            score, tier = calculate_priority(ticket.category, ticket.confirmations_count, ticket.created_at, now)
+            ticket.computed_priority = score
     else:
         score = ticket.computed_priority
         tier = "RESOLVED"
@@ -96,6 +146,7 @@ def format_ticket_response(t: Ticket, tier: str = "LOW") -> TicketResponse:
         confirmations_count=t.confirmations_count,
         computed_priority=t.computed_priority,
         priority_tier=tier,
+        priority_overridden=bool(getattr(t, "priority_overridden", False)),
         tech_assigned_to=t.tech_assigned_to or "",
         tech_completed=bool(t.tech_completed),
         tech_completed_at=t.tech_completed_at,
@@ -270,7 +321,10 @@ def get_room_tickets(
         query = query.filter(Ticket.status == "resolved")
 
     if category:
-        query = query.filter(Ticket.category == category)
+        if category.lower() in ["civil", "carpentry"]:
+            query = query.filter(Ticket.category.in_(["civil", "carpentry"]))
+        else:
+            query = query.filter(Ticket.category == category)
     if hostel_id:
         query = query.filter(Ticket.hostel_id == hostel_id)
 

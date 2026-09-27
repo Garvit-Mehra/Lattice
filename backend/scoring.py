@@ -14,6 +14,7 @@ CATEGORY_BASE_WEIGHTS = {
     "plumbing": 16.0,         # Water wastage / sanitation
     "network": 12.0,          # Academic connectivity
     "carpentry": 10.0,        # Fixtures, wardrobe, door latches
+    "civil": 10.0,            # Furniture / Civil alias for carpentry
     "other": 8.0
 }
 

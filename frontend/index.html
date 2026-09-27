@@ -43,11 +43,18 @@
 
             <!-- Right: Low-contrast Ghost Buttons Linking to Other Portals -->
             <div class="flex items-center gap-2">
-                <a href="http://localhost:8001/" target="_blank" class="text-slate-500 hover:text-slate-800 text-xs font-mono px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Open Technician Portal">
+                <span id="live-sync-indicator" class="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Live Sync</span>
+                </span>
+                <a id="nav-link-tech" href="/tech" target="_blank" rel="noopener noreferrer" class="text-slate-500 hover:text-slate-800 text-xs font-mono px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Open Field Technician Portal (/tech or :8001)">
                     [Tech]
                 </a>
-                <a href="http://localhost:8002/" target="_blank" class="text-slate-500 hover:text-slate-800 text-xs font-mono px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Open Admin Panel">
+                <a id="nav-link-admin" href="/admin" target="_blank" rel="noopener noreferrer" class="text-slate-500 hover:text-slate-800 text-xs font-mono px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Open Estate Admin Console (/admin or :8002)">
                     [Admin]
+                </a>
+                <a id="nav-link-presentation" href="/presentation" target="_blank" rel="noopener noreferrer" class="text-slate-500 hover:text-slate-800 text-xs font-mono px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Open Hackathon Pitch Presentation (/presentation)">
+                    [Deck]
                 </a>
             </div>
         </div>
@@ -182,7 +189,7 @@
                                 <option value="electrical">Electrical (Fan, Lights, Switchboard, Wiring)</option>
                                 <option value="plumbing">Plumbing (Tap Leakage, Drain Clog, Flush Tank)</option>
                                 <option value="appliance">Appliance (Geyser, Water Dispenser)</option>
-                                <option value="civil">Furniture / Civil (Door Latch, Window, Cupboard)</option>
+                                <option value="carpentry">Furniture / Civil (Door Latch, Window, Cupboard)</option>
                                 <option value="network">LAN / Wi-Fi Network Socket</option>
                             </select>
                         </div>
@@ -229,6 +236,15 @@
                             <input type="text" id="ticket-lookup-input" placeholder="Ticket Reference: #LAT-8921" class="flex-1 bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 uppercase rounded-lg px-3 py-2 outline-none focus:border-slate-400">
                             <button onclick="lookupTicket()" class="px-4 py-2 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors">
                                 Fetch
+                            </button>
+                        </div>
+                        <div class="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                            <span class="font-medium">1-Click Demo:</span>
+                            <button type="button" onclick="setDemoLookup('LAT-8921')" class="px-2 py-0.5 rounded font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition-colors">
+                                #LAT-8921 (Benchmark)
+                            </button>
+                            <button type="button" onclick="setDemoLookup('LAT-6040')" class="px-2 py-0.5 rounded font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors">
+                                #LAT-6040
                             </button>
                         </div>
                     </div>
@@ -281,7 +297,7 @@
                         <h3 class="text-sm font-bold text-slate-900 tracking-tight">21-Hostel SLA Scoreboard</h3>
                         <p class="text-xs text-slate-500 mt-0.5">Average repair turnaround time in hours per block across all 21 hostels.</p>
                     </div>
-                    <button onclick="loadAdminQueue()" class="text-xs font-mono font-medium text-slate-600 hover:text-slate-900">
+                    <button onclick="loadSLAStats()" class="text-xs font-mono font-medium text-slate-600 hover:text-slate-900">
                         ↻ Refresh
                     </button>
                 </div>
@@ -294,7 +310,7 @@
     </main>
 
     <!-- Report Appliance Modal -->
-    <div id="report-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+    <div id="report-modal" onclick="if(event.target === this) closeReportModal()" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
         <div class="bg-white border border-slate-200 rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 id="modal-appliance-title" class="font-bold text-slate-900 text-sm">Report Appliance</h3>

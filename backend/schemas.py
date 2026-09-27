@@ -30,6 +30,8 @@ class ApplianceResponse(BaseModel):
     status: str
     active_ticket_id: Optional[int] = None
     confirmations_count: int = 0
+    working_confirmations_count: int = 0
+    required_working_confirmations: int = 2
     priority_score: float = 0.0
     priority_tier: str = "LOW"
     issue_description: Optional[str] = None
@@ -43,6 +45,10 @@ class ApplianceReportRequest(BaseModel):
     issue_description: str
     user_token: Optional[str] = "anon_user"
     reporter_name: Optional[str] = "Hostel Resident"
+
+
+class ApplianceResolveCrowdRequest(BaseModel):
+    user_token: Optional[str] = "anon_user"
 
 
 class RoomTicketCreateRequest(BaseModel):
@@ -74,6 +80,7 @@ class TicketResponse(BaseModel):
     confirmations_count: int
     computed_priority: float
     priority_tier: str
+    priority_overridden: Optional[bool] = False
     
     # 2-Step Verification & SMS Notification
     tech_assigned_to: Optional[str] = ""

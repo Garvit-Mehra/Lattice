@@ -342,6 +342,286 @@ def test_benchmark_ticket_lat_8921():
     assert t2["ticket_code"] == "LAT-8921"
 
 
+# ==========================================
+# 4. P0 & P1 VERIFICATION TESTS
+# ==========================================
+def test_admin_reseed_endpoint():
+    """Verify POST /api/v1/admin/reseed successfully refreshes database with sample data."""
+    login_res = client_admin.post("/api/v1/admin/login", json={"username": "admin", "password": "admin123"})
+    assert login_res.status_code == 200
+    headers = {"Authorization": f"Bearer {login_res.json()['token']}"}
+
+    res = client_admin.post("/api/v1/admin/reseed", headers=headers)
+    assert res.status_code == 200
+    assert res.json()["status"] == "success"
+
+    # Verify benchmark ticket exists after reseed
+    res_bench = client_student.get("/api/v1/tickets/LAT-8921")
+    assert res_bench.status_code == 200
+    assert res_bench.json()["ticket_code"] == "LAT-8921"
+
+
+def test_priority_override_persistence():
+    """Verify admin priority override persists across subsequent queries without being erased."""
+    login_res = client_admin.post("/api/v1/admin/login", json={"username": "admin", "password": "admin123"})
+    headers = {"Authorization": f"Bearer {login_res.json()['token']}"}
+
+    # Fetch a ticket
+    res = client_admin.get("/api/v1/admin/tickets?status_filter=active", headers=headers)
+    assert res.status_code == 200
+    tickets = res.json()
+    t = tickets[0]
+
+    # Override priority to 95.0 (CRITICAL)
+    res_override = client_admin.patch(
+        f"/api/v1/admin/tickets/{t['id']}/override",
+        headers=headers,
+        json={"computed_priority": 95.0, "override_reason": "Executive priority elevation"}
+    )
+    assert res_override.status_code == 200
+    updated = res_override.json()
+    assert updated["computed_priority"] == 95.0
+    assert updated["priority_overridden"] is True
+    assert updated["priority_tier"] == "CRITICAL"
+
+    # Subsequent fetch must NOT overwrite priority back to calculated formula
+    res_fetch = client_admin.get("/api/v1/admin/tickets?status_filter=all", headers=headers)
+    assert res_fetch.status_code == 200
+    refetched = next(item for item in res_fetch.json() if item["id"] == t["id"])
+    assert refetched["computed_priority"] == 95.0
+    assert refetched["priority_tier"] == "CRITICAL"
+
+
+def test_category_aliasing_and_benchmark_filtering():
+    """Verify filtering by 'civil' or 'carpentry' both return carpentry tickets including benchmark #LAT-8921."""
+    login_res = client_tech.post("/api/v1/tech/login", json={"username": "technician", "password": "tech123"})
+    headers = {"Authorization": f"Bearer {login_res.json()['token']}"}
+
+    # Query with category=civil
+    res_civil = client_tech.get("/api/v1/tech/tickets/room?status_filter=all&category=civil", headers=headers)
+    assert res_civil.status_code == 200
+    codes_civil = [item["ticket_code"] for item in res_civil.json()]
+    assert "LAT-8921" in codes_civil
+
+    # Query with category=carpentry
+    res_carpentry = client_tech.get("/api/v1/tech/tickets/room?status_filter=all&category=carpentry", headers=headers)
+    assert res_carpentry.status_code == 200
+    codes_carpentry = [item["ticket_code"] for item in res_carpentry.json()]
+    assert "LAT-8921" in codes_carpentry
+
+
+def test_appliance_status_mutation_and_student_confirm_flow():
+    """Verify admin setting appliance to faulty auto-generates active ticket without student 404 deadlock."""
+    login_res = client_admin.post("/api/v1/admin/login", json={"username": "admin", "password": "admin123"})
+    headers = {"Authorization": f"Bearer {login_res.json()['token']}"}
+
+    # Find an operational appliance
+    res_apps = client_admin.get("/api/v1/admin/appliances?status_filter=operational", headers=headers)
+    apps = res_apps.json()
+    assert len(apps) > 0
+    target_app = apps[0]
+
+    # Mutate to faulty
+    res_mut = client_admin.patch(
+        f"/api/v1/admin/appliances/{target_app['id']}/status",
+        headers=headers,
+        json={"status": "faulty"}
+    )
+    assert res_mut.status_code == 200
+
+    # Student confirms broken on this appliance: must succeed and NOT return 404
+    res_confirm = client_student.post(
+        f"/api/v1/appliances/{target_app['id']}/confirm",
+        json={"user_token": "test_confirmer_99"}
+    )
+    assert res_confirm.status_code == 200
+    ticket = res_confirm.json()
+    assert ticket["appliance_id"] == target_app["id"]
+
+    # Admin standard resolves ticket -> appliance must be restored to operational
+    res_res = client_admin.patch(
+        f"/api/v1/admin/tickets/{ticket['id']}/override",
+        headers=headers,
+        json={"status": "resolved"}
+    )
+    assert res_res.status_code == 200
+    # Verify appliance operational
+    res_check = client_student.get(f"/api/v1/appliances?hostel_id={target_app['hostel_id']}&floor={target_app['floor']}")
+    refetched_app = next(a for a in res_check.json() if a["id"] == target_app["id"])
+    assert refetched_app["status"] == "operational"
+
+
+def test_single_port_submounts_and_session_persistence():
+    """Verify /tech and /admin sub-mounts on port 8000 and cross-process session persistence."""
+    # 1. Single port submounts accessible on student app client
+    res_tech = client_student.get("/tech/api/v1/hostels")
+    assert res_tech.status_code == 200
+    assert len(res_tech.json()) == 21
+
+    res_admin = client_student.get("/admin/api/v1/hostels")
+    assert res_admin.status_code == 200
+    assert len(res_admin.json()) == 21
+
+    # 2. Login as technician on tech app
+    login_res = client_tech.post("/api/v1/tech/login", json={"username": "technician", "password": "tech123"})
+    token = login_res.json()["token"]
+
+    # Verify session is recognized across backends via SQLite persistence
+    from backend.auth import verify_session
+    session = verify_session(token, required_role="technician")
+    assert session is not None
+    assert session["username"] == "technician"
+
+
+def test_session_expiration_ttl():
+    """Verify session expiration TTL checks reject and prune expired tokens (PRA-SEC-003)."""
+    import datetime
+    from backend.auth import verify_session, ACTIVE_SESSIONS
+    from backend.models import AuthSession
+    from backend.database import SessionLocal
+
+    token = "lat_admin_test_expired_123"
+    past_time = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+
+    # Insert an expired session into DB
+    db = SessionLocal()
+    db.query(AuthSession).filter(AuthSession.token == token).delete()
+    db.add(AuthSession(
+        token=token,
+        username="admin",
+        name="Admin",
+        role="admin",
+        dept="Test",
+        created_at=past_time - datetime.timedelta(hours=12),
+        expires_at=past_time
+    ))
+    db.commit()
+    db.close()
+
+    # Clear from in-memory cache to force DB read
+    if token in ACTIVE_SESSIONS:
+        del ACTIVE_SESSIONS[token]
+
+    # Verify that verify_session rejects the expired token
+    result = verify_session(token, required_role="admin")
+    assert result is None, "Expired session must return None"
+
+    # Verify it was pruned from DB
+    db = SessionLocal()
+    db_session = db.query(AuthSession).filter(AuthSession.token == token).first()
+    assert db_session is None, "Expired session must be pruned from database"
+    db.close()
+
+
+def test_rate_limiting_abuse_throttling():
+    """Verify rate limiting rejects excessive automated requests with 429 Too Many Requests (PRA-SEC-004)."""
+    from backend.student_app import _RATE_LIMIT_STORE
+    _RATE_LIMIT_STORE.clear()
+
+    # Normal request succeeds
+    res1 = client_student.post(
+        "/api/v1/appliances/1/confirm",
+        json={"user_token": "rate_limit_tester_0"}
+    )
+    assert res1.status_code in [200, 400]  # Either ok or already resolved
+
+    # Artificially fill rate limit bucket to trigger threshold
+    for i in range(35):
+        client_student.post(
+            "/api/v1/appliances/1/confirm",
+            json={"user_token": f"rate_limit_tester_{i}"}
+        )
+
+    # Next request must return 429
+    res_limited = client_student.post(
+        "/api/v1/appliances/1/confirm",
+        json={"user_token": "rate_limit_tester_over"}
+    )
+    assert res_limited.status_code == 429
+    assert "Rate limit exceeded" in res_limited.json()["detail"]
+
+    # Clear rate limit store so subsequent tests remain unaffected
+    _RATE_LIMIT_STORE.clear()
+
+
+def test_workflow_logic_and_validation():
+    """Verify floor bounds, mobile regex, premature verification guard, and rejection escalation."""
+    # 1. Floor bounds check: Kalam hostel has 6 floors, floor 99 must fail
+    res_floor_err = client_student.post("/api/v1/tickets/room", json={
+        "hostel_id": 1,
+        "room_number": "9901",
+        "floor": 99,
+        "category": "electrical",
+        "title": "Sparking",
+        "description": "Short circuit",
+        "reporter_name": "Test",
+        "reporter_contact": "9876543210"
+    })
+    assert res_floor_err.status_code == 400
+    assert "Invalid floor" in res_floor_err.json()["detail"]
+
+    # 2. Invalid contact format check: non-10-digit number must fail
+    res_phone_err = client_student.post("/api/v1/tickets/room", json={
+        "hostel_id": 1,
+        "room_number": "101",
+        "floor": 1,
+        "category": "electrical",
+        "title": "Sparking",
+        "description": "Short circuit",
+        "reporter_name": "Test",
+        "reporter_contact": "12345abc"
+    })
+    assert res_phone_err.status_code == 400
+    assert "Invalid contact format" in res_phone_err.json()["detail"]
+
+    # 3. Create valid ticket
+    res_ok = client_student.post("/api/v1/tickets/room", json={
+        "hostel_id": 1,
+        "room_number": "101",
+        "floor": 1,
+        "category": "electrical",
+        "title": "Sparking",
+        "description": "Short circuit",
+        "reporter_name": "Test Resident",
+        "reporter_contact": "9876543210"
+    })
+    assert res_ok.status_code == 200
+    t = res_ok.json()
+    t_code = t["ticket_code"]
+    t_id = t["id"]
+
+    # 4. Premature verification guard: Student tries to verify before tech completes Step 1
+    res_premature = client_student.post(f"/api/v1/tickets/{t_code}/verify", json={
+        "verified": True,
+        "student_feedback": "All good"
+    })
+    assert res_premature.status_code == 400
+    assert "Technician has not yet submitted Step 1" in res_premature.json()["detail"]
+
+    # 5. Tech completes Step 1
+    login_res = client_tech.post("/api/v1/tech/login", json={"username": "tech_electrical", "password": "tech123"})
+    token = login_res.json()["token"]
+    res_step1 = client_tech.post(
+        f"/api/v1/tech/tickets/{t_id}/complete",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"tech_name": "Ramesh (Electrical)", "tech_notes": "Wiring replaced"}
+    )
+    assert res_step1.status_code == 200
+    assert res_step1.json()["status"] == "awaiting_student_verification"
+
+    # 6. Rejection escalation: Student tests work, rejects repair ("No, Still Broken")
+    res_reject = client_student.post(f"/api/v1/tickets/{t_code}/verify", json={
+        "verified": False,
+        "student_feedback": "Sparks still flying from socket!"
+    })
+    assert res_reject.status_code == 200
+    t_reopened = res_reject.json()
+    assert t_reopened["status"] == "in_progress"
+    assert t_reopened["priority_tier"] == "CRITICAL"
+    assert t_reopened["computed_priority"] >= 50.0
+    assert "[REJECTED WORK - REOPENED]" in t_reopened["student_feedback"]
+
+
 if __name__ == "__main__":
     print("[*] Running LATTICE · IITH Operations Console Multi-Portal Integration Test Suite...")
     test_student_hostels_and_appliances()
@@ -351,5 +631,13 @@ if __name__ == "__main__":
     test_admin_portal_and_overrides()
     test_room_phone_number_required_and_sms()
     test_benchmark_ticket_lat_8921()
-    print("[+] ALL 7 TEST SUITES PASSED CLEANLY! (Student, Technician, Admin, 2-Step Verification, #LAT-8921 & SMS Alerting)")
+    test_admin_reseed_endpoint()
+    test_priority_override_persistence()
+    test_category_aliasing_and_benchmark_filtering()
+    test_appliance_status_mutation_and_student_confirm_flow()
+    test_single_port_submounts_and_session_persistence()
+    test_session_expiration_ttl()
+    test_rate_limiting_abuse_throttling()
+    test_workflow_logic_and_validation()
+    print("[+] ALL 15 TEST SUITES PASSED CLEANLY! (Student, Technician, Admin, 2-Step Verification, #LAT-8921, Reseed, Aliases, Sessions, TTL, Rate Limiting, Workflow Logic)")
 

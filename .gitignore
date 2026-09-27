@@ -23,5 +23,6 @@ Thumbs.db
 *.db-wal
 *.db-shm
 
-# Archives
+# Audit logs & archives
+.readiness-audit/
 *.zip

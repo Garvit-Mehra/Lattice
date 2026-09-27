@@ -59,6 +59,7 @@ class Ticket(Base):
     status = Column(String(50), default="submitted")  # 'submitted', 'in_progress', 'awaiting_student_verification', 'resolved'
     confirmations_count = Column(Integer, default=1)  # Number of students confirming the issue
     computed_priority = Column(Float, default=10.0)  # Dynamically computed priority score
+    priority_overridden = Column(Boolean, default=False)  # Admin override flag to protect manual score
 
     # 2-Step Verification for Room Maintenance
     tech_assigned_to = Column(String(100), default="")
@@ -74,6 +75,7 @@ class Ticket(Base):
     resolved_at = Column(DateTime, nullable=True)
 
     hostel = relationship("Hostel", back_populates="tickets")
+    appliance = relationship("Appliance", foreign_keys=[appliance_id])
     votes = relationship("TicketVote", back_populates="ticket", cascade="all, delete-orphan")
 
 
@@ -86,3 +88,16 @@ class TicketVote(Base):
     voted_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     ticket = relationship("Ticket", back_populates="votes")
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(100), unique=True, index=True, nullable=False)
+    username = Column(String(100), nullable=False)
+    name = Column(String(100), nullable=False)
+    role = Column(String(50), nullable=False)
+    dept = Column(String(100), default="General")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
