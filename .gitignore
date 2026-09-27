@@ -24,9 +24,25 @@ Thumbs.db
 *.db-wal
 *.db-shm
 
-# Pitch deck / presentation notes (not graded)
+# Not graded: pitch deck / presentation notes
 pitch_deck_outline.md
+presentation/
+
+# Not graded: internal dev notes
 TODO.md
+
+# Not graded: infra files
+Dockerfile
+docker-compose.yml
+alembic.ini
+alembic/
+
+# Not graded: tests
+tests/
+
+# Not graded: duplicate stubs
+frontend/static/admin.js
+frontend/static/tech.js
 
 # Audit logs & archives
 .readiness-audit/
