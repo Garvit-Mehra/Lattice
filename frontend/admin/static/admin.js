@@ -145,7 +145,8 @@ async function adminLogout() {
 
 async function loadAdminHostels() {
     try {
-        const res = await fetch(`/api/v1/hostels`);
+        let res = await fetch(`${getAdminApiBase()}/api/v1/hostels`);
+        if (!res.ok) res = await fetch(`/api/v1/hostels`);
         if (res.ok) {
             adminHostelsList = await res.json();
             populateAdminHostelDropdowns();

@@ -10,7 +10,7 @@ from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from .database import engine, get_db, Base
@@ -18,7 +18,7 @@ from .models import Hostel, Appliance, Ticket, TicketVote
 from .schemas import (
     HostelResponse, ApplianceResponse, ApplianceReportRequest,
     RoomTicketCreateRequest, TicketResponse, TicketVoteRequest,
-    StudentVerifyWorkRequest
+    StudentVerifyWorkRequest, DashboardStatsResponse, SLAMetric
 )
 from .scoring import calculate_priority
 
@@ -364,8 +364,76 @@ def student_verify_room_work(
 
 
 # ==========================================
-# 3. STATIC FRONTEND SERVING
+# 3. SLA & DASHBOARD ANALYTICS API
 # ==========================================
+@app.get("/api/v1/analytics/sla", response_model=DashboardStatsResponse)
+def get_sla_analytics(db: Session = Depends(get_db)):
+    """Computes SLA resolution turnaround times per hostel and overall KPIs."""
+    now = datetime.datetime.utcnow()
+    hostels = db.query(Hostel).all()
+    sla_metrics = []
+
+    total_active = db.query(Ticket).filter(Ticket.status != "resolved").count()
+    
+    # Critical active tickets (score >= 35)
+    active_tickets = db.query(Ticket).filter(Ticket.status != "resolved").all()
+    critical_count = sum(1 for t in active_tickets if t.computed_priority >= 35.0)
+
+    total_appliances = db.query(Appliance).count()
+    operational_appliances = db.query(Appliance).filter(Appliance.status == "operational").count()
+    operational_pct = (operational_appliances / total_appliances * 100.0) if total_appliances > 0 else 100.0
+
+    for h in hostels:
+        resolved_tickets = db.query(Ticket).filter(
+            Ticket.hostel_id == h.id,
+            Ticket.status == "resolved",
+            Ticket.resolved_at.isnot(None)
+        ).all()
+
+        pending_count = db.query(Ticket).filter(
+            Ticket.hostel_id == h.id,
+            Ticket.status != "resolved"
+        ).count()
+
+        if resolved_tickets:
+            durations = [(t.resolved_at - t.created_at).total_seconds() / 3600.0 for t in resolved_tickets]
+            avg_hours = round(sum(durations) / len(durations), 1)
+        else:
+            avg_hours = 12.0  # Baseline
+
+        if avg_hours <= 12.0:
+            rating = "Excellent"
+        elif avg_hours <= 24.0:
+            rating = "Good"
+        else:
+            rating = "Needs Improvement"
+
+        sla_metrics.append(SLAMetric(
+            hostel_id=h.id,
+            hostel_name=h.name,
+            avg_resolution_hours=avg_hours,
+            total_resolved=len(resolved_tickets),
+            total_pending=pending_count,
+            performance_rating=rating
+        ))
+
+    return DashboardStatsResponse(
+        total_active_tickets=total_active,
+        total_critical_tickets=critical_count,
+        total_appliances_monitored=total_appliances,
+        appliances_operational_pct=round(operational_pct, 1),
+        sla_metrics=sla_metrics
+    )
+
+
+# ==========================================
+# 4. STATIC FRONTEND & PRESENTATION SERVING
+# ==========================================
+@app.get("/favicon.ico")
+def favicon():
+    return Response(status_code=204)
+
+
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 
 if os.path.exists(FRONTEND_DIR):
@@ -379,3 +447,14 @@ if os.path.exists(FRONTEND_DIR):
         if os.path.exists(index_file):
             return FileResponse(index_file)
         return {"message": "LATTICE · IITH Operations Console Student UI not found."}
+
+    @app.get("/presentation")
+    @app.get("/presemtation")
+    @app.get("/deck")
+    @app.get("/slides")
+    def serve_presentation():
+        pres_file = os.path.join(os.path.dirname(FRONTEND_DIR), "presentation", "index.html")
+        if os.path.exists(pres_file):
+            return FileResponse(pres_file)
+        return {"message": "Presentation slides not found."}
+

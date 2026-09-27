@@ -166,7 +166,8 @@ async function techLogout() {
 
 async function loadHostels() {
     try {
-        const res = await fetch(`/api/v1/hostels`);
+        let res = await fetch(`${getApiBase()}/api/v1/hostels`);
+        if (!res.ok) res = await fetch(`/api/v1/hostels`);
         if (res.ok) {
             hostelsList = await res.json();
             populateHostelDropdowns();

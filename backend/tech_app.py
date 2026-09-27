@@ -9,14 +9,15 @@ from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from .database import engine, get_db, Base
 from .models import Hostel, Appliance, Ticket, TicketVote
 from .schemas import (
     LoginRequest, LoginResponse, TechAssignRequest,
-    TechCompleteWorkRequest, ApplianceResponse, TicketResponse
+    TechCompleteWorkRequest, ApplianceResponse, TicketResponse,
+    HostelResponse
 )
 from .scoring import calculate_priority
 from .auth import authenticate_user, verify_session, revoke_session
@@ -350,8 +351,19 @@ def tech_complete_room_work(
 
 
 # ==========================================
-# 4. STATIC FRONTEND SERVING
+# 4. HOSTELS API & STATIC SERVING
 # ==========================================
+@app.get("/api/v1/hostels", response_model=List[HostelResponse])
+def get_hostels(db: Session = Depends(get_db)):
+    """Returns all IITH hostels."""
+    return db.query(Hostel).order_by(Hostel.name).all()
+
+
+@app.get("/favicon.ico")
+def favicon():
+    return Response(status_code=204)
+
+
 TECH_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "technician")
 
 if os.path.exists(TECH_DIR):
@@ -365,3 +377,14 @@ if os.path.exists(TECH_DIR):
         if os.path.exists(index_file):
             return FileResponse(index_file)
         return {"message": "LATTICE · IITH Operations Console Technician UI not found."}
+
+    @app.get("/presentation")
+    @app.get("/presemtation")
+    @app.get("/deck")
+    @app.get("/slides")
+    def serve_presentation():
+        pres_file = os.path.join(os.path.dirname(os.path.dirname(TECH_DIR)), "presentation", "index.html")
+        if os.path.exists(pres_file):
+            return FileResponse(pres_file)
+        return {"message": "Presentation slides not found."}
+

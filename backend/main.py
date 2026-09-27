@@ -9,7 +9,7 @@ from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -499,6 +499,11 @@ def format_ticket_response(t: Ticket, tier: str) -> TicketResponse:
 # ==========================================
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 
+@app.get("/favicon.ico")
+def favicon():
+    return Response(status_code=204)
+
+
 if os.path.exists(FRONTEND_DIR):
     static_path = os.path.join(FRONTEND_DIR, "static")
     if os.path.exists(static_path):
@@ -512,6 +517,9 @@ if os.path.exists(FRONTEND_DIR):
         return {"message": "Frontend index.html not found, visit /docs for API."}
 
     @app.get("/presentation")
+    @app.get("/presemtation")
+    @app.get("/deck")
+    @app.get("/slides")
     def serve_presentation():
         pres_file = os.path.join(os.path.dirname(FRONTEND_DIR), "presentation", "index.html")
         if os.path.exists(pres_file):
