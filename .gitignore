@@ -19,9 +19,14 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Temporary SQLite WAL files
+# SQLite databases
+*.db
 *.db-wal
 *.db-shm
+
+# Pitch deck / presentation notes (not graded)
+pitch_deck_outline.md
+TODO.md
 
 # Audit logs & archives
 .readiness-audit/
