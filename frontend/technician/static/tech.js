@@ -168,6 +168,22 @@ function fillDemoTech(username, password) {
     loginTechnician(username, password);
 }
 
+function hideLoginModal() {
+    const modal = document.getElementById("login-modal");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+    }
+}
+
+function showLoginModal() {
+    const modal = document.getElementById("login-modal");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "";
+    }
+}
+
 async function loginTechnician(username, password) {
     const errBox = document.getElementById("login-error");
     const submitBtn = document.getElementById("btn-login-submit");
@@ -193,7 +209,7 @@ async function loginTechnician(username, password) {
         localStorage.setItem("kandifix_tech_token", data.token);
         currentTech = data;
         updateNavProfile();
-        document.getElementById("login-modal").classList.add("hidden");
+        hideLoginModal();
         
         // Load initial data
         loadFaultyAppliances();
@@ -214,7 +230,7 @@ async function loginTechnician(username, password) {
 async function verifyCurrentSession() {
     const token = localStorage.getItem("kandifix_tech_token");
     if (!token) {
-        document.getElementById("login-modal").classList.remove("hidden");
+        showLoginModal();
         return;
     }
 
@@ -225,17 +241,17 @@ async function verifyCurrentSession() {
 
         if (!res.ok) {
             localStorage.removeItem("kandifix_tech_token");
-            document.getElementById("login-modal").classList.remove("hidden");
+            showLoginModal();
             return;
         }
 
         currentTech = await res.json();
         updateNavProfile();
-        document.getElementById("login-modal").classList.add("hidden");
+        hideLoginModal();
         loadFaultyAppliances();
         loadRoomTickets();
     } catch (err) {
-        document.getElementById("login-modal").classList.remove("hidden");
+        showLoginModal();
     }
 }
 
@@ -257,7 +273,7 @@ async function techLogout() {
 
     localStorage.removeItem("kandifix_tech_token");
     currentTech = null;
-    document.getElementById("login-modal").classList.remove("hidden");
+    showLoginModal();
 }
 
 async function loadHostels() {
@@ -331,7 +347,11 @@ async function loadFaultyAppliances() {
         const res = await fetch(url, { headers: getAuthHeader() });
         if (!res.ok) {
             if (res.status === 401) {
-                document.getElementById("login-modal").classList.remove("hidden");
+                if (!currentTech) {
+                    showLoginModal();
+                } else {
+                    console.warn("Unauthorized request in loadFaultyAppliances, keeping active session UI");
+                }
                 return;
             }
             throw new Error("Failed to load appliance complaints");
@@ -503,7 +523,11 @@ async function loadRoomTickets() {
         const res = await fetch(url, { headers: getAuthHeader() });
         if (!res.ok) {
             if (res.status === 401) {
-                document.getElementById("login-modal").classList.remove("hidden");
+                if (!currentTech) {
+                    showLoginModal();
+                } else {
+                    console.warn("Unauthorized request in loadRoomTickets, keeping active session UI");
+                }
                 return;
             }
             throw new Error("Failed to load room tickets");
@@ -901,7 +925,7 @@ async function techCompleteOtpLogin(phone, code) {
     localStorage.setItem("kandifix_tech_token", data.token);
     currentTech = data;
     updateNavProfile();
-    document.getElementById("login-modal").classList.add("hidden");
+    hideLoginModal();
     showToast(`Welcome, ${data.name || 'Technician'}! Logged in via Phone OTP.`, "success");
 
     loadFaultyAppliances();

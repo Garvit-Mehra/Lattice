@@ -95,6 +95,11 @@ body {
     box-shadow: 0 0 8px #10b981;
 }
 
+/* Visibility utility safety fallback */
+.hidden {
+    display: none !important;
+}
+
 /* Toast Notification Styles */
 #toast-container {
     position: fixed;

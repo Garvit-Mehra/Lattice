@@ -95,6 +95,11 @@ body {
     box-shadow: 0 0 8px #10b981;
 }
 
+/* General display utilities fallback */
+.hidden {
+    display: none !important;
+}
+
 /* Modal styling safety defaults (in case Tailwind CDN is slow or blocked) */
 .tech-modal-overlay {
     position: fixed;
@@ -108,6 +113,10 @@ body {
     -webkit-backdrop-filter: blur(12px);
     padding: 1rem;
     overflow-y: auto;
+}
+
+.tech-modal-overlay.hidden {
+    display: none !important;
 }
 
 .tech-modal-card {

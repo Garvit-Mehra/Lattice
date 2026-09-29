@@ -157,6 +157,22 @@ function fillDemoAdmin(username, password) {
     loginAdmin(username, password);
 }
 
+function hideAdminLoginModal() {
+    const modal = document.getElementById("admin-login-modal");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+    }
+}
+
+function showAdminLoginModal() {
+    const modal = document.getElementById("admin-login-modal");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "";
+    }
+}
+
 async function loginAdmin(username, password) {
     const errBox = document.getElementById("admin-login-error");
     const submitBtn = document.getElementById("btn-admin-login-submit");
@@ -181,7 +197,7 @@ async function loginAdmin(username, password) {
         const data = await res.json();
         localStorage.setItem("kandifix_admin_token", data.token);
         currentAdmin = data;
-        document.getElementById("admin-login-modal").classList.add("hidden");
+        hideAdminLoginModal();
 
         // Load dashboard views
         loadDashboardStats();
@@ -203,7 +219,7 @@ async function loginAdmin(username, password) {
 async function verifyAdminSession() {
     const token = localStorage.getItem("kandifix_admin_token");
     if (!token) {
-        document.getElementById("admin-login-modal").classList.remove("hidden");
+        showAdminLoginModal();
         return;
     }
 
@@ -214,17 +230,17 @@ async function verifyAdminSession() {
 
         if (!res.ok) {
             localStorage.removeItem("kandifix_admin_token");
-            document.getElementById("admin-login-modal").classList.remove("hidden");
+            showAdminLoginModal();
             return;
         }
 
         currentAdmin = await res.json();
-        document.getElementById("admin-login-modal").classList.add("hidden");
+        hideAdminLoginModal();
         loadDashboardStats();
         loadAdminTickets();
         loadAdminAppliances();
     } catch (err) {
-        document.getElementById("admin-login-modal").classList.remove("hidden");
+        showAdminLoginModal();
     }
 }
 
@@ -238,7 +254,7 @@ async function adminLogout() {
 
     localStorage.removeItem("kandifix_admin_token");
     currentAdmin = null;
-    document.getElementById("admin-login-modal").classList.remove("hidden");
+    showAdminLoginModal();
 }
 
 async function loadAdminHostels() {
@@ -377,7 +393,11 @@ async function loadDashboardStats() {
 
         if (!res.ok) {
             if (res.status === 401) {
-                document.getElementById("admin-login-modal").classList.remove("hidden");
+                if (!currentAdmin) {
+                    showAdminLoginModal();
+                } else {
+                    console.warn("Unauthorized request in loadDashboardStats, preserving session UI");
+                }
                 return;
             }
             throw new Error("Failed to load dashboard metrics");
@@ -453,7 +473,11 @@ async function loadAdminTickets() {
         const res = await fetch(url, { headers: getAdminAuthHeader() });
         if (!res.ok) {
             if (res.status === 401) {
-                document.getElementById("admin-login-modal").classList.remove("hidden");
+                if (!currentAdmin) {
+                    showAdminLoginModal();
+                } else {
+                    console.warn("Unauthorized request in loadAdminTickets, preserving session UI");
+                }
                 return;
             }
             throw new Error("Failed to load tickets");
@@ -742,7 +766,11 @@ async function loadAdminAppliances() {
         const res = await fetch(url, { headers: getAdminAuthHeader() });
         if (!res.ok) {
             if (res.status === 401) {
-                document.getElementById("admin-login-modal").classList.remove("hidden");
+                if (!currentAdmin) {
+                    showAdminLoginModal();
+                } else {
+                    console.warn("Unauthorized request in loadAdminAppliances, preserving session UI");
+                }
                 return;
             }
             throw new Error("Failed to load appliances");
@@ -977,7 +1005,7 @@ async function adminCompleteOtpLogin(phone, code) {
     const data = await res.json();
     localStorage.setItem("kandifix_admin_token", data.token);
     currentAdmin = data;
-    document.getElementById("admin-login-modal").classList.add("hidden");
+    hideAdminLoginModal();
     showToast(`Welcome, ${data.name || 'Admin'}! Signed in via Phone OTP.`, "success");
 
     loadDashboardStats();

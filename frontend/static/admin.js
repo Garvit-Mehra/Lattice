@@ -149,141 +149,28 @@ function setupAdminAuthForm() {
             await loginAdmin(username, password);
         });
     }
-    // Enter key support in OTP code box
-    const otpInput = document.getElementById("admin-otp-code");
-    if (otpInput) {
-        otpInput.addEventListener("keydown", (e) => { if (e.key === "Enter") adminVerifyOtp(); });
-    }
-}
-
-// ─── Admin Login Tab Switcher ─────────────────────────────────────────────────
-function switchAdminLoginTab(tab) {
-    const panels = { pwd: "admin-panel-pwd", otp: "admin-panel-otp" };
-    const tabs   = { pwd: "admin-tab-pwd",   otp: "admin-tab-otp"   };
-    Object.entries(panels).forEach(([k, id]) => {
-        const el = document.getElementById(id);
-        if (el) el.classList.toggle("hidden", k !== tab);
-    });
-    Object.entries(tabs).forEach(([k, id]) => {
-        const btn = document.getElementById(id);
-        if (!btn) return;
-        if (k === tab) {
-            btn.className = "flex-1 py-2 rounded-lg text-xs font-semibold bg-rose-600 text-white transition-colors";
-        } else {
-            btn.className = "flex-1 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors";
-        }
-    });
-    const errBox = document.getElementById("admin-login-error");
-    if (errBox) errBox.classList.add("hidden");
-}
-
-// ─── Admin Phone OTP Login ────────────────────────────────────────────────────
-let _adminOtpPhone = "";
-
-async function adminSendOtp() {
-    const phone = (document.getElementById("admin-otp-phone")?.value || "").trim();
-    const errBox = document.getElementById("admin-login-error");
-    const btn = document.getElementById("btn-admin-otp-send");
-    if (!phone) {
-        if (errBox) { errBox.textContent = "Please enter your mobile number."; errBox.classList.remove("hidden"); }
-        return;
-    }
-    if (errBox) errBox.classList.add("hidden");
-    if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
-    try {
-        const res = await fetch(`${getAdminApiBase()}/api/v1/admin/otp/send`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone, purpose: "login" })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Failed to send OTP.");
-
-        _adminOtpPhone = phone;
-
-        if (data.master_bypass) {
-            await adminOtpLoginFinal(phone, "000000", true);
-            return;
-        }
-
-        document.getElementById("admin-otp-step-phone")?.classList.add("hidden");
-        document.getElementById("admin-otp-step-code")?.classList.remove("hidden");
-        const sentTo = document.getElementById("admin-otp-sent-to");
-        if (sentTo) sentTo.textContent = `***${phone.slice(-4)}`;
-
-        if (data.dev_code) {
-            const codeInput = document.getElementById("admin-otp-code");
-            if (codeInput) {
-                codeInput.value = data.dev_code;
-                showAdminToast(`[DEV] Admin OTP: ${data.dev_code}`, "info");
-            }
-        }
-    } catch (err) {
-        if (errBox) { errBox.textContent = err.message; errBox.classList.remove("hidden"); }
-    } finally {
-        if (btn) { btn.disabled = false; btn.textContent = "Send OTP"; }
-    }
-}
-
-async function adminVerifyOtp() {
-    const code = (document.getElementById("admin-otp-code")?.value || "").trim();
-    const errBox = document.getElementById("admin-login-error");
-    const btn = document.getElementById("btn-admin-otp-verify");
-    if (!code || code.length < 6) {
-        if (errBox) { errBox.textContent = "Please enter the 6-digit OTP."; errBox.classList.remove("hidden"); }
-        return;
-    }
-    if (errBox) errBox.classList.add("hidden");
-    if (btn) { btn.disabled = true; btn.textContent = "Verifying…"; }
-    try {
-        await adminOtpLoginFinal(_adminOtpPhone, code, false);
-    } finally {
-        if (btn) { btn.disabled = false; btn.textContent = "Verify & Sign In"; }
-    }
-}
-
-async function adminOtpLoginFinal(phone, code, isMaster) {
-    const errBox = document.getElementById("admin-login-error");
-    try {
-        const res = await fetch(`${getAdminApiBase()}/api/v1/admin/otp/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone, code })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "OTP login failed.");
-
-        localStorage.setItem("kandifix_admin_token", data.token);
-        currentAdmin = data;
-        document.getElementById("admin-login-modal")?.classList.add("hidden");
-        loadDashboardStats();
-        loadAdminTickets();
-        loadAdminAppliances();
-        showAdminToast(`Welcome, ${data.name}! Signed in via ${isMaster ? "master bypass" : "Phone OTP"}.`, "success");
-    } catch (err) {
-        if (errBox) { errBox.textContent = err.message; errBox.classList.remove("hidden"); }
-    }
-}
-
-function resetAdminOtpStep() {
-    _adminOtpPhone = "";
-    document.getElementById("admin-otp-step-phone")?.classList.remove("hidden");
-    document.getElementById("admin-otp-step-code")?.classList.add("hidden");
-    const el = document.getElementById("admin-otp-code");
-    if (el) el.value = "";
-}
-
-function showAdminToast(msg, type = "info") {
-    // Reuse app.js showToast if available, otherwise console
-    if (typeof showToast === "function") { showToast(msg, type); return; }
-    console.log(`[Admin Toast][${type}] ${msg}`);
 }
 
 function fillDemoAdmin(username, password) {
-    switchAdminLoginTab("pwd");
     document.getElementById("admin-username").value = username;
     document.getElementById("admin-password").value = password;
     loginAdmin(username, password);
+}
+
+function hideAdminLoginModal() {
+    const modal = document.getElementById("admin-login-modal");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+    }
+}
+
+function showAdminLoginModal() {
+    const modal = document.getElementById("admin-login-modal");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "";
+    }
 }
 
 async function loginAdmin(username, password) {
@@ -310,7 +197,7 @@ async function loginAdmin(username, password) {
         const data = await res.json();
         localStorage.setItem("kandifix_admin_token", data.token);
         currentAdmin = data;
-        document.getElementById("admin-login-modal").classList.add("hidden");
+        hideAdminLoginModal();
 
         // Load dashboard views
         loadDashboardStats();
@@ -332,7 +219,7 @@ async function loginAdmin(username, password) {
 async function verifyAdminSession() {
     const token = localStorage.getItem("kandifix_admin_token");
     if (!token) {
-        document.getElementById("admin-login-modal").classList.remove("hidden");
+        showAdminLoginModal();
         return;
     }
 
@@ -343,17 +230,17 @@ async function verifyAdminSession() {
 
         if (!res.ok) {
             localStorage.removeItem("kandifix_admin_token");
-            document.getElementById("admin-login-modal").classList.remove("hidden");
+            showAdminLoginModal();
             return;
         }
 
         currentAdmin = await res.json();
-        document.getElementById("admin-login-modal").classList.add("hidden");
+        hideAdminLoginModal();
         loadDashboardStats();
         loadAdminTickets();
         loadAdminAppliances();
     } catch (err) {
-        document.getElementById("admin-login-modal").classList.remove("hidden");
+        showAdminLoginModal();
     }
 }
 
@@ -367,7 +254,7 @@ async function adminLogout() {
 
     localStorage.removeItem("kandifix_admin_token");
     currentAdmin = null;
-    document.getElementById("admin-login-modal").classList.remove("hidden");
+    showAdminLoginModal();
 }
 
 async function loadAdminHostels() {
@@ -400,25 +287,99 @@ function switchAdminTab(tab) {
     const btnDash = document.getElementById("admin-tab-btn-dashboard");
     const btnTickets = document.getElementById("admin-tab-btn-tickets");
     const btnApps = document.getElementById("admin-tab-btn-appliances");
+    const btnTech = document.getElementById("admin-tab-btn-techusers");
 
     const viewDash = document.getElementById("view-admin-dashboard");
     const viewTickets = document.getElementById("view-admin-tickets");
     const viewApps = document.getElementById("view-admin-appliances");
+    const viewTech = document.getElementById("view-admin-techusers");
 
     const inactiveClass = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition";
     const activeClass = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-sm border border-slate-200 transition";
 
-    btnDash.className = tab === "dashboard" ? activeClass : inactiveClass;
-    btnTickets.className = tab === "tickets" ? activeClass : inactiveClass;
-    btnApps.className = tab === "appliances" ? activeClass : inactiveClass;
+    if (btnDash) btnDash.className = tab === "dashboard" ? activeClass : inactiveClass;
+    if (btnTickets) btnTickets.className = tab === "tickets" ? activeClass : inactiveClass;
+    if (btnApps) btnApps.className = tab === "appliances" ? activeClass : inactiveClass;
+    if (btnTech) btnTech.className = tab === "techusers" ? activeClass : inactiveClass;
 
-    viewDash.classList.toggle("hidden", tab !== "dashboard");
-    viewTickets.classList.toggle("hidden", tab !== "tickets");
-    viewApps.classList.toggle("hidden", tab !== "appliances");
+    if (viewDash) viewDash.classList.toggle("hidden", tab !== "dashboard");
+    if (viewTickets) viewTickets.classList.toggle("hidden", tab !== "tickets");
+    if (viewApps) viewApps.classList.toggle("hidden", tab !== "appliances");
+    if (viewTech) viewTech.classList.toggle("hidden", tab !== "techusers");
 
     if (tab === "dashboard") loadDashboardStats();
     if (tab === "tickets") loadAdminTickets();
     if (tab === "appliances") loadAdminAppliances();
+    if (tab === "techusers") loadAdminTechUsers();
+}
+
+async function loadAdminTechUsers() {
+    const tbody = document.getElementById("admin-techusers-table-body");
+    if (!tbody) return;
+
+    try {
+        const res = await fetch(`${getAdminApiBase()}/api/v1/admin/tech-users`, {
+            headers: getAdminAuthHeader()
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch technician registry");
+        const list = await res.json();
+
+        if (list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">No technicians registered yet. Add one using the form on the left.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = list.map(u => `
+            <tr class="hover:bg-slate-50 border-b border-slate-100">
+                <td class="font-bold text-slate-900 py-3">${u.name}</td>
+                <td class="font-mono text-slate-600">${u.username}</td>
+                <td class="font-mono font-bold text-slate-800">${u.phone}</td>
+                <td><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">${u.dept}</span></td>
+                <td>
+                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold ${u.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}">
+                        <span class="w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
+                        <span>${u.is_active ? 'Active (OTP Enabled)' : 'Disabled'}</span>
+                    </span>
+                </td>
+            </tr>
+        `).join("");
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-rose-600 text-xs">${e.message}</td></tr>`;
+    }
+}
+
+async function adminRegisterTechUser(e) {
+    e.preventDefault();
+    const name = document.getElementById("tech-reg-name").value.trim();
+    const username = document.getElementById("tech-reg-username").value.trim();
+    const phone = document.getElementById("tech-reg-phone").value.trim();
+    const dept = document.getElementById("tech-reg-dept").value;
+    const btn = document.getElementById("btn-tech-reg-submit");
+
+    if (btn) { btn.disabled = true; btn.textContent = "Authorising..."; }
+
+    try {
+        const res = await fetch(`${getAdminApiBase()}/api/v1/admin/tech-users`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...getAdminAuthHeader()
+            },
+            body: JSON.stringify({ name, username, phone, dept })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Registration failed");
+
+        showToast(`Technician ${name} registered! (+91 ${phone})`, "success");
+        document.getElementById("form-register-tech").reset();
+        loadAdminTechUsers();
+    } catch (err) {
+        showToast(err.message, "error");
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "+ Authorise Technician Mobile"; }
+    }
 }
 
 // ==========================================
@@ -432,7 +393,11 @@ async function loadDashboardStats() {
 
         if (!res.ok) {
             if (res.status === 401) {
-                document.getElementById("admin-login-modal").classList.remove("hidden");
+                if (!currentAdmin) {
+                    showAdminLoginModal();
+                } else {
+                    console.warn("Unauthorized request in loadDashboardStats, preserving session UI");
+                }
                 return;
             }
             throw new Error("Failed to load dashboard metrics");
@@ -508,7 +473,11 @@ async function loadAdminTickets() {
         const res = await fetch(url, { headers: getAdminAuthHeader() });
         if (!res.ok) {
             if (res.status === 401) {
-                document.getElementById("admin-login-modal").classList.remove("hidden");
+                if (!currentAdmin) {
+                    showAdminLoginModal();
+                } else {
+                    console.warn("Unauthorized request in loadAdminTickets, preserving session UI");
+                }
                 return;
             }
             throw new Error("Failed to load tickets");
@@ -797,7 +766,11 @@ async function loadAdminAppliances() {
         const res = await fetch(url, { headers: getAdminAuthHeader() });
         if (!res.ok) {
             if (res.status === 401) {
-                document.getElementById("admin-login-modal").classList.remove("hidden");
+                if (!currentAdmin) {
+                    showAdminLoginModal();
+                } else {
+                    console.warn("Unauthorized request in loadAdminAppliances, preserving session UI");
+                }
                 return;
             }
             throw new Error("Failed to load appliances");
@@ -901,3 +874,142 @@ async function reseedDatabase() {
         showToast("Error reseeding: " + e.message, "error");
     }
 }
+
+// ==========================================
+// 9. ADMIN PHONE OTP AUTHENTICATION
+// ==========================================
+let _adminOtpPhone = "";
+
+function switchAdminLoginTab(mode) {
+    const tabPwd = document.getElementById("admin-tab-pwd");
+    const tabOtp = document.getElementById("admin-tab-otp");
+    const panelPwd = document.getElementById("admin-panel-pwd");
+    const panelOtp = document.getElementById("admin-panel-otp");
+    const errBox = document.getElementById("admin-login-error");
+    if (errBox) errBox.classList.add("hidden");
+
+    if (mode === "otp") {
+        tabPwd.className = "flex-1 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors";
+        tabOtp.className = "flex-1 py-2 rounded-lg text-xs font-semibold bg-rose-600 text-white transition-colors";
+        panelPwd.classList.add("hidden");
+        panelOtp.classList.remove("hidden");
+    } else {
+        tabPwd.className = "flex-1 py-2 rounded-lg text-xs font-semibold bg-rose-600 text-white transition-colors";
+        tabOtp.className = "flex-1 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors";
+        panelPwd.classList.remove("hidden");
+        panelOtp.classList.add("hidden");
+    }
+}
+
+function resetAdminOtpStep() {
+    document.getElementById("admin-otp-step-phone").classList.remove("hidden");
+    document.getElementById("admin-otp-step-code").classList.add("hidden");
+    document.getElementById("admin-otp-code").value = "";
+    const errBox = document.getElementById("admin-login-error");
+    if (errBox) errBox.classList.add("hidden");
+}
+
+async function adminSendOtp() {
+    const phoneInput = document.getElementById("admin-otp-phone");
+    const errBox = document.getElementById("admin-login-error");
+    const btn = document.getElementById("btn-admin-otp-send");
+    const raw = (phoneInput?.value || "").trim().replace(/\D/g, "");
+
+    if (errBox) errBox.classList.add("hidden");
+
+    if (!raw || raw.length < 10) {
+        if (errBox) {
+            errBox.textContent = "Please enter a valid 10-digit mobile number.";
+            errBox.classList.remove("hidden");
+        }
+        return;
+    }
+
+    _adminOtpPhone = raw;
+    if (btn) { btn.disabled = true; btn.textContent = "Sending OTP..."; }
+
+    try {
+        const res = await fetch(`${getAdminApiBase()}/api/v1/admin/otp/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: _adminOtpPhone })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to send OTP.");
+
+        if (data.master_bypass) {
+            await adminCompleteOtpLogin(_adminOtpPhone, "000000");
+            return;
+        }
+
+        document.getElementById("admin-otp-step-phone").classList.add("hidden");
+        document.getElementById("admin-otp-step-code").classList.remove("hidden");
+        document.getElementById("admin-otp-sent-to").textContent = `***${_adminOtpPhone.slice(-4)}`;
+
+        if (data.dev_code) {
+            const codeInput = document.getElementById("admin-otp-code");
+            if (codeInput) codeInput.value = data.dev_code;
+            showToast(`[DEV DEMO] OTP auto-filled: ${data.dev_code}`, "info", 5000);
+        }
+    } catch (err) {
+        if (errBox) {
+            errBox.textContent = err.message;
+            errBox.classList.remove("hidden");
+        }
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "Send OTP"; }
+    }
+}
+
+async function adminVerifyOtp() {
+    const code = (document.getElementById("admin-otp-code")?.value || "").trim();
+    const errBox = document.getElementById("admin-login-error");
+    const btn = document.getElementById("btn-admin-otp-verify");
+
+    if (errBox) errBox.classList.add("hidden");
+
+    if (!code || code.length < 6) {
+        if (errBox) {
+            errBox.textContent = "Please enter the 6-digit OTP code.";
+            errBox.classList.remove("hidden");
+        }
+        return;
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = "Verifying..."; }
+    try {
+        await adminCompleteOtpLogin(_adminOtpPhone, code);
+    } catch (err) {
+        if (errBox) {
+            errBox.textContent = err.message;
+            errBox.classList.remove("hidden");
+        }
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "Verify & Sign In"; }
+    }
+}
+
+async function adminCompleteOtpLogin(phone, code) {
+    const res = await fetch(`${getAdminApiBase()}/api/v1/admin/otp/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, code })
+    });
+
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Authentication failed.");
+    }
+
+    const data = await res.json();
+    localStorage.setItem("kandifix_admin_token", data.token);
+    currentAdmin = data;
+    hideAdminLoginModal();
+    showToast(`Welcome, ${data.name || 'Admin'}! Signed in via Phone OTP.`, "success");
+
+    loadDashboardStats();
+    loadAdminTickets();
+    loadAdminAppliances();
+}
+
