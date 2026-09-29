@@ -40,9 +40,6 @@ alembic/
 # Not graded: tests
 tests/
 
-# Not graded: duplicate stubs
-frontend/static/admin.js
-frontend/static/tech.js
 
 # Audit logs & archives
 .readiness-audit/
