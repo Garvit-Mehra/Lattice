@@ -206,7 +206,7 @@ async function loginTechnician(username, password) {
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.textContent = "Sign In to Tech Portal";
+            submitBtn.textContent = "Sign In to Duty Console";
         }
     }
 }

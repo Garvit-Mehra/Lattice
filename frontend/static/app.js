@@ -752,60 +752,13 @@ async function submitRoomTicket(e) {
         return;
     }
 
+    // For hackathon evaluation: Direct room ticket submission with phone stored for notification/SLA tracking
     _ticketFormData = { hostelId, floor, roomNumber, category, desc, reporterName, cleanPhone };
-
-    // If phone already verified in this session, skip OTP
-    if (_ticketOtpState === "otp_verified" && _ticketVerifiedPhone === cleanPhone) {
-        await _createRoomTicket(resultBox);
-        return;
-    }
-
-    // Step 1: Send OTP
-    _ticketOtpState = "idle";
     resultBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800";
-    resultBox.textContent = "Sending OTP to your mobile…";
+    resultBox.textContent = "Lodging ticket…";
     resultBox.classList.remove("hidden");
 
-    try {
-        const res = await fetch("/api/v1/otp/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone: cleanPhone, purpose: "ticket" })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Failed to send OTP.");
-
-        if (data.master_bypass) {
-            // Master bypass — skip OTP entry entirely
-            _ticketOtpState = "otp_verified";
-            _ticketVerifiedPhone = cleanPhone;
-            await _createRoomTicket(resultBox);
-            return;
-        }
-
-        _ticketOtpState = "otp_sent";
-        _ticketVerifiedPhone = cleanPhone;
-
-        // Render OTP entry inline
-        let devHint = data.dev_code ? `<p class="text-[11px] text-blue-600 font-mono mt-1">[DEV] OTP: <strong>${data.dev_code}</strong></p>` : "";
-        resultBox.innerHTML = `
-            <p class="font-semibold mb-2">📱 OTP sent to ***${cleanPhone.slice(-4)}. Enter code to continue:</p>
-            <div class="flex gap-2 items-center">
-                <input id="room-otp-input" type="text" maxlength="6" placeholder="6-digit OTP" class="flex-1 bg-white border border-blue-300 rounded-lg px-3 py-2 text-xs font-mono tracking-widest outline-none focus:border-blue-500 text-slate-900">
-                <button id="room-otp-btn" onclick="verifyRoomTicketOtp()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors">Verify</button>
-            </div>
-            <button onclick="resendRoomOtp()" class="mt-1 text-[11px] text-blue-500 hover:underline">Resend OTP</button>
-            ${devHint}
-        `;
-
-        const otpInput = document.getElementById("room-otp-input");
-        if (otpInput) otpInput.addEventListener("keydown", (ev) => { if (ev.key === "Enter") verifyRoomTicketOtp(); });
-
-    } catch (err) {
-        resultBox.className = "p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800";
-        resultBox.textContent = err.message;
-        resultBox.classList.remove("hidden");
-    }
+    await _createRoomTicket(resultBox);
 }
 
 async function verifyRoomTicketOtp() {
@@ -869,11 +822,11 @@ async function _createRoomTicket(resultBox) {
         resultBox.className = "p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1.5";
         resultBox.innerHTML = `
             <div class="flex items-center gap-1.5 font-bold">
-                <span>✅ Phone Verified &amp; Ticket Lodged:</span>
+                <span>✅ Ticket Lodged:</span>
                 <span class="font-mono text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded">Ticket Reference: #${ticket.ticket_code}</span>
             </div>
-            <p>Your complaint has been queued for technician assignment.</p>
-            <p class="text-[11px] text-emerald-700 font-mono">SMS alerts will be dispatched to +91 ${cleanPhone} when the technician completes the work.</p>
+            <p>Your room defect ticket has been queued and dispatched to maintenance.</p>
+            <p class="text-[11px] text-emerald-700 font-mono">Contact registered: +91 ${cleanPhone} (SMS notification on technician resolution)</p>
         `;
         resultBox.classList.remove("hidden");
 

@@ -94,3 +94,92 @@ body {
 .duty-glow {
     box-shadow: 0 0 8px #10b981;
 }
+
+/* Modal styling safety defaults (in case Tailwind CDN is slow or blocked) */
+.tech-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.tech-modal-card {
+    background-color: #0f172a;
+    border: 1px solid rgba(51, 65, 85, 0.9);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    width: 100%;
+    max-width: 28rem;
+    padding: 1.75rem;
+    margin: auto;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Toast Notifications */
+#toast-container {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    max-width: 24rem;
+    width: calc(100% - 2.5rem);
+    pointer-events: none;
+}
+
+.toast-item {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    animation: toastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    backdrop-filter: blur(8px);
+}
+
+.toast-success {
+    background-color: #064e3b;
+    color: #ecfdf5;
+    border: 1px solid #059669;
+}
+.toast-error {
+    background-color: #881337;
+    color: #fff1f2;
+    border: 1px solid #e11d48;
+}
+.toast-info {
+    background-color: #0f172a;
+    color: #f8fafc;
+    border: 1px solid #334155;
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.toast-hiding {
+    opacity: 0 !important;
+    transform: translateY(-8px) scale(0.96) !important;
+}
