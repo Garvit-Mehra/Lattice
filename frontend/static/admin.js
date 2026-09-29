@@ -69,16 +69,15 @@ async function copyToClipboard(text, btnElement) {
 // Dynamic Cross-Portal Navigation Links
 function updateCrossPortalLinks() {
     const isMultiPort = window.location.port === "8001" || window.location.port === "8002";
-    const isSinglePort = !isMultiPort;
     const studentLink = document.getElementById("nav-link-student");
     const techLink = document.getElementById("nav-link-tech");
     const presLink = document.getElementById("nav-link-presentation");
 
     if (studentLink) {
-        studentLink.href = isSinglePort ? "/" : `//${window.location.hostname}:8000/`;
+        studentLink.href = isMultiPort ? `//${window.location.hostname}:8000/` : "/";
     }
     if (techLink) {
-        techLink.href = isSinglePort ? "/tech" : `//${window.location.hostname}:8001/`;
+        techLink.href = isMultiPort ? `//${window.location.hostname}:8001/` : "/tech";
     }
     if (presLink) {
         presLink.href = "/presentation";
