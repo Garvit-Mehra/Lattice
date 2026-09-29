@@ -5,8 +5,8 @@
       "root": ".",
       "framework": "fastapi",
       "entrypoint": "api/index.py",
-      "installCommand": "pip install -r requirements.txt && python -m backend.seed_data",
-      "buildCommand": "echo 'No build step required'"
+      "installCommand": "pip install -r requirements.txt",
+      "buildCommand": "echo 'Build OK'"
     }
   },
   "rewrites": [
