@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "lattice": {
+      "root": ".",
+      "framework": "fastapi",
+      "entrypoint": "api/index.py",
+      "installCommand": "pip install -r requirements.txt && python -m backend.seed_data",
+      "buildCommand": "echo 'No build step required'"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "lattice"
+      }
+    }
+  ]
+}

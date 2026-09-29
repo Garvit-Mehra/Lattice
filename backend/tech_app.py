@@ -15,15 +15,16 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
-from .database import engine, get_db, Base
-from .models import Hostel, Appliance, Ticket, TicketVote
+from .database import engine, get_db, Base, SessionLocal
+from .models import Hostel, Appliance, Ticket, TicketVote, TechUser
 from .schemas import (
     LoginRequest, LoginResponse, TechAssignRequest,
     TechCompleteWorkRequest, ApplianceResponse, TicketResponse,
-    HostelResponse
+    HostelResponse, OtpSendRequest, OtpSendResponse, PhoneOtpLoginRequest
 )
 from .scoring import calculate_priority
 from .auth import authenticate_user, verify_session, revoke_session
+from .sms import send_otp_sms, verify_otp, is_master_number, _normalise_phone
 
 Base.metadata.create_all(bind=engine)
 
@@ -164,11 +165,11 @@ def format_ticket_response(t: Ticket, tier: str = "LOW") -> TicketResponse:
 
 
 # ==========================================
-# 1. AUTHENTICATION
+# 1. AUTHENTICATION — PASSWORD + OTP PHONE LOGIN
 # ==========================================
 @app.post("/api/v1/tech/login", response_model=LoginResponse)
 def tech_login(req: LoginRequest):
-    """Authenticate technician credentials."""
+    """Authenticate technician with username + password (existing accounts)."""
     session = authenticate_user(req.username, req.password, required_role="technician")
     if not session:
         # Fallback to test admin logging into tech panel
@@ -182,6 +183,102 @@ def tech_login(req: LoginRequest):
         role=session["role"],
         name=session["name"]
     )
+
+
+@app.post("/api/v1/tech/otp/send", response_model=OtpSendResponse)
+def tech_send_otp(req: OtpSendRequest, db: Session = Depends(get_db)):
+    """
+    Step 1 of phone-OTP login: send a 6-digit OTP to the technician's registered phone.
+    The phone must belong to an active TechUser created by the admin.
+    Master number bypasses OTP.
+    """
+    normalised = _normalise_phone(req.phone)
+
+    # Check master bypass first
+    if is_master_number(normalised):
+        return OtpSendResponse(success=True, master_bypass=True, message="Master number — OTP bypassed.")
+
+    # Only allow OTP login if the phone belongs to a registered, active TechUser
+    tech_user = db.query(TechUser).filter(
+        TechUser.phone == normalised,
+        TechUser.is_active == True
+    ).first()
+    if not tech_user:
+        raise HTTPException(
+            status_code=404,
+            detail="Phone number not registered. Contact your estate admin to register your account."
+        )
+
+    result = send_otp_sms(normalised, purpose="login")
+    if not result["success"]:
+        raise HTTPException(status_code=503, detail=f"SMS delivery failed: {result.get('error', 'Unknown error')}")
+
+    return OtpSendResponse(
+        success=True,
+        master_bypass=False,
+        message=f"OTP sent to ***{normalised[-4:]}",
+        dev_code=result.get("dev_code"),
+    )
+
+
+@app.post("/api/v1/tech/otp/login", response_model=LoginResponse)
+def tech_otp_login(req: PhoneOtpLoginRequest, db: Session = Depends(get_db)):
+    """
+    Step 2 of phone-OTP login: verify OTP and issue a session token.
+    Master number skips OTP verification entirely.
+    """
+    import uuid, datetime
+    from .auth import ACTIVE_SESSIONS, SESSION_TTL_HOURS
+    from .models import AuthSession
+
+    normalised = _normalise_phone(req.phone)
+
+    # Resolve TechUser (or master bypass)
+    if is_master_number(normalised):
+        tech_user = None  # demo account
+        master = True
+    else:
+        master = False
+        if not verify_otp(normalised, req.code, purpose="login"):
+            raise HTTPException(status_code=401, detail="Invalid or expired OTP. Please request a new code.")
+        tech_user = db.query(TechUser).filter(
+            TechUser.phone == normalised,
+            TechUser.is_active == True
+        ).first()
+        if not tech_user:
+            raise HTTPException(status_code=404, detail="Phone not registered with any active technician account.")
+
+    now = datetime.datetime.utcnow()
+    expires_at = now + datetime.timedelta(hours=SESSION_TTL_HOURS)
+
+    if master:
+        name = "Demo Technician (Master)"
+        username = "master_tech_demo"
+        dept = "Demo"
+    else:
+        name = tech_user.name
+        username = tech_user.username
+        dept = tech_user.dept
+
+    token = f"lat_technician_{uuid.uuid4().hex}"
+    session_data = {
+        "token": token, "username": username, "name": name,
+        "role": "technician", "dept": dept,
+        "created_at": now.isoformat(), "expires_at": expires_at.isoformat()
+    }
+    ACTIVE_SESSIONS[token] = session_data
+    try:
+        db_session = SessionLocal()
+        db_session.add(AuthSession(
+            token=token, username=username, name=name,
+            role="technician", dept=dept, created_at=now, expires_at=expires_at
+        ))
+        db_session.commit()
+        db_session.close()
+    except Exception as e:
+        print(f"Warning: could not persist OTP session: {e}")
+
+    return LoginResponse(token=token, username=username, role="technician", name=name)
 
 
 @app.post("/api/v1/tech/logout")
@@ -382,7 +479,8 @@ def tech_complete_room_work(
     # Trigger SMS notification simulation to the student's phone
     sms_notice = ""
     if ticket.reporter_contact:
-        sms_notice = f"[SMS Alert Dispatched to {ticket.reporter_contact} at {now.strftime('%H:%M')}]: LATTICE: Tech {ticket.tech_assigned_to} completed repairs for Room {ticket.room_number or ''}. Ticket Reference: #{ticket.ticket_code}. Please verify at http://localhost:8000"
+        _public_url = os.getenv("LATTICE_PUBLIC_URL", "http://localhost:8000").rstrip("/")
+        sms_notice = f"[SMS Alert Dispatched to {ticket.reporter_contact} at {now.strftime('%H:%M')}]: LATTICE: Tech {ticket.tech_assigned_to} completed repairs for Room {ticket.room_number or ''}. Ticket Reference: #{ticket.ticket_code}. Please verify at {_public_url}"
         print(f"[SMS NOTIFICATION SERVICE] -> {ticket.reporter_contact}: {sms_notice}")
 
     combined_notes = req.tech_notes

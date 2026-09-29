@@ -768,4 +768,144 @@ async function submitRoomWorkComplete() {
     }
 }
 
+// ==========================================
+// 8. TECHNICIAN PHONE OTP AUTHENTICATION
+// ==========================================
+let _techOtpPhone = "";
+
+function switchLoginTab(mode) {
+    const tabPwd = document.getElementById("tab-pwd");
+    const tabOtp = document.getElementById("tab-otp");
+    const panelPwd = document.getElementById("panel-pwd");
+    const panelOtp = document.getElementById("panel-otp");
+    const errBox = document.getElementById("login-error");
+    if (errBox) errBox.classList.add("hidden");
+
+    if (mode === "otp") {
+        tabPwd.className = "flex-1 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-colors";
+        tabOtp.className = "flex-1 py-2 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 transition-colors";
+        panelPwd.classList.add("hidden");
+        panelOtp.classList.remove("hidden");
+    } else {
+        tabPwd.className = "flex-1 py-2 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 transition-colors";
+        tabOtp.className = "flex-1 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-colors";
+        panelPwd.classList.remove("hidden");
+        panelOtp.classList.add("hidden");
+    }
+}
+
+function resetOtpStep() {
+    document.getElementById("otp-step-phone").classList.remove("hidden");
+    document.getElementById("otp-step-code").classList.add("hidden");
+    document.getElementById("tech-otp-code").value = "";
+    const errBox = document.getElementById("login-error");
+    if (errBox) errBox.classList.add("hidden");
+}
+
+async function techSendOtp() {
+    const phoneInput = document.getElementById("tech-otp-phone");
+    const errBox = document.getElementById("login-error");
+    const btn = document.getElementById("btn-otp-send");
+    const raw = (phoneInput?.value || "").trim().replace(/\D/g, "");
+
+    if (errBox) errBox.classList.add("hidden");
+
+    if (!raw || raw.length < 10) {
+        if (errBox) {
+            errBox.textContent = "Please enter a valid 10-digit mobile number.";
+            errBox.classList.remove("hidden");
+        }
+        return;
+    }
+
+    _techOtpPhone = raw;
+    if (btn) { btn.disabled = true; btn.textContent = "Sending OTP..."; }
+
+    try {
+        const res = await fetch(`${getApiBase()}/api/v1/tech/otp/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: _techOtpPhone })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to send OTP.");
+
+        if (data.master_bypass) {
+            // Master number bypass — auto log in
+            await techCompleteOtpLogin(_techOtpPhone, "000000");
+            return;
+        }
+
+        // Switch to OTP code entry step
+        document.getElementById("otp-step-phone").classList.add("hidden");
+        document.getElementById("otp-step-code").classList.remove("hidden");
+        document.getElementById("otp-sent-to").textContent = `***${_techOtpPhone.slice(-4)}`;
+
+        if (data.dev_code) {
+            const codeInput = document.getElementById("tech-otp-code");
+            if (codeInput) codeInput.value = data.dev_code;
+            showToast(`[DEV DEMO] OTP auto-filled: ${data.dev_code}`, "info", 5000);
+        }
+    } catch (err) {
+        if (errBox) {
+            errBox.textContent = err.message;
+            errBox.classList.remove("hidden");
+        }
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "Send OTP"; }
+    }
+}
+
+async function techVerifyOtp() {
+    const code = (document.getElementById("tech-otp-code")?.value || "").trim();
+    const errBox = document.getElementById("login-error");
+    const btn = document.getElementById("btn-otp-verify");
+
+    if (errBox) errBox.classList.add("hidden");
+
+    if (!code || code.length < 6) {
+        if (errBox) {
+            errBox.textContent = "Please enter the 6-digit OTP code.";
+            errBox.classList.remove("hidden");
+        }
+        return;
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = "Verifying..."; }
+    try {
+        await techCompleteOtpLogin(_techOtpPhone, code);
+    } catch (err) {
+        if (errBox) {
+            errBox.textContent = err.message;
+            errBox.classList.remove("hidden");
+        }
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "Verify & Sign In"; }
+    }
+}
+
+async function techCompleteOtpLogin(phone, code) {
+    const res = await fetch(`${getApiBase()}/api/v1/tech/otp/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, code })
+    });
+
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Authentication failed.");
+    }
+
+    const data = await res.json();
+    localStorage.setItem("kandifix_tech_token", data.token);
+    currentTech = data;
+    updateNavProfile();
+    document.getElementById("login-modal").classList.add("hidden");
+    showToast(`Welcome, ${data.name || 'Technician'}! Logged in via Phone OTP.`, "success");
+
+    loadFaultyAppliances();
+    loadRoomTickets();
+}
+
 

@@ -18,60 +18,119 @@
 </head>
 <body class="min-h-screen flex flex-col bg-[#020617] text-[#f8fafc] antialiased selection:bg-amber-500 selection:text-slate-950">
 
-    <!-- Screen A: Technician Login Screen (Overlaid when unauthenticated) -->
-    <div id="login-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
-        <div class="bg-[#0f172a] border border-slate-800 rounded-2xl max-w-md w-full p-8 shadow-2xl space-y-6">
+    <!-- Hackathon Disclaimer Banner (Persistent Ribbon) -->
+    <div id="tech-hackathon-warning" class="bg-amber-500/90 text-slate-950 px-4 py-1.5 text-xs font-medium border-b border-amber-600 flex items-center justify-between sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto w-full flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="bg-slate-950 text-amber-300 font-mono font-black px-2 py-0.5 rounded text-[10px] uppercase">Hackathon Build</span>
+                <span><strong>Demo Prototype:</strong> MILAN 2026 hackathon submission. Not a finished production system; some features are evaluation prototypes.</span>
+            </div>
+            <button onclick="document.getElementById('tech-hackathon-warning').style.display='none'" class="text-slate-900 hover:text-black font-bold text-xs px-1.5 py-0.5 rounded hover:bg-amber-400">✕</button>
+        </div>
+    </div>
+
+    <!-- Screen A: Technician Login Screen (Overlaid when unauthenticated) -    <div id="login-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+        <div class="bg-[#0f172a] border border-slate-800 rounded-2xl max-w-md w-full p-8 shadow-2xl space-y-5">
             <div class="text-center space-y-2">
                 <div class="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 mx-auto flex items-center justify-center shadow-lg text-2xl">
                     <span class="font-mono font-bold text-xs text-amber-400">DUTY</span>
                 </div>
                 <h2 class="text-xl font-black tracking-tight text-white uppercase">LATTICE · IITH Operations Console</h2>
-                <p class="text-xs text-[#94a3b8]">Campus Maintenance & Duty Gateway</p>
+                <p class="text-xs text-[#94a3b8]">Campus Maintenance &amp; Duty Gateway</p>
                 <div class="inline-block px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-amber-950/60 text-amber-300 border border-amber-700">
                     Field Access Guard
                 </div>
             </div>
 
+            <!-- Login Method Tabs -->
+            <div class="flex gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <button id="tab-pwd" onclick="switchLoginTab('pwd')" class="flex-1 py-2 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 transition-colors">Password</button>
+                <button id="tab-otp" onclick="switchLoginTab('otp')" class="flex-1 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-colors">📱 Phone OTP</button>
+            </div>
+
             <div id="login-error" class="hidden p-3 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-300 text-xs"></div>
 
-            <form id="tech-login-form" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Username</label>
-                    <input type="text" id="tech-username" value="technician" placeholder="e.g. technician" class="w-full bg-[#020617] border border-slate-700 text-xs text-white rounded-lg p-3 outline-none focus:border-amber-500 font-mono" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
-                    <input type="password" id="tech-password" value="tech123" placeholder="••••••••" class="w-full bg-[#020617] border border-slate-700 text-xs text-white rounded-lg p-3 outline-none focus:border-amber-500 font-mono" required>
-                </div>
-                <button type="submit" id="btn-login-submit" class="w-full touch-target rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20 transition-colors flex items-center justify-center">
-                    Sign In to Duty Console
-                </button>
-            </form>
+            <!-- Password Login Panel -->
+            <div id="panel-pwd">
+                <form id="tech-login-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Username</label>
+                        <input type="text" id="tech-username" value="technician" placeholder="e.g. technician" class="w-full bg-[#020617] border border-slate-700 text-xs text-white rounded-lg p-3 outline-none focus:border-amber-500 font-mono" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+                        <input type="password" id="tech-password" value="tech123" placeholder="••••••••" class="w-full bg-[#020617] border border-slate-700 text-xs text-white rounded-lg p-3 outline-none focus:border-amber-500 font-mono" required>
+                    </div>
+                    <button type="submit" id="btn-login-submit" class="w-full touch-target rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20 transition-colors flex items-center justify-center">
+                        Sign In to Duty Console
+                    </button>
+                </form>
 
-            <div class="pt-4 border-t border-slate-800">
-                <p class="text-[11px] text-[#94a3b8] text-center mb-2 font-mono uppercase tracking-wider font-semibold">Fast Demo 1-Click Auth</p>
-                <div class="grid grid-cols-2 gap-2 text-xs font-mono">
-                    <button onclick="fillDemoTech('technician', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
-                        <span class="font-bold text-white">General Tech</span><br>
-                        <span class="text-[10px] text-slate-400">technician</span>
-                    </button>
-                    <button onclick="fillDemoTech('tech_electrical', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
-                        <span class="font-bold text-white">Electrical</span><br>
-                        <span class="text-[10px] text-slate-400">tech_electrical</span>
-                    </button>
-                    <button onclick="fillDemoTech('tech_plumbing', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
-                        <span class="font-bold text-white">Plumbing</span><br>
-                        <span class="text-[10px] text-slate-400">tech_plumbing</span>
-                    </button>
-                    <button onclick="fillDemoTech('tech_carpentry', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
-                        <span class="font-bold text-white">Carpentry</span><br>
-                        <span class="text-[10px] text-slate-400">tech_carpentry</span>
-                    </button>
+                <div class="pt-4 border-t border-slate-800 mt-4">
+                    <p class="text-[11px] text-[#94a3b8] text-center mb-2 font-mono uppercase tracking-wider font-semibold">Fast Demo 1-Click Auth</p>
+                    <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                        <button onclick="fillDemoTech('technician', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
+                            <span class="font-bold text-white">General Tech</span><br>
+                            <span class="text-[10px] text-slate-400">technician</span>
+                        </button>
+                        <button onclick="fillDemoTech('tech_electrical', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
+                            <span class="font-bold text-white">Electrical</span><br>
+                            <span class="text-[10px] text-slate-400">tech_electrical</span>
+                        </button>
+                        <button onclick="fillDemoTech('tech_plumbing', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
+                            <span class="font-bold text-white">Plumbing</span><br>
+                            <span class="text-[10px] text-slate-400">tech_plumbing</span>
+                        </button>
+                        <button onclick="fillDemoTech('tech_carpentry', 'tech123')" class="p-2.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-slate-700 text-slate-300 text-left transition-colors">
+                            <span class="font-bold text-white">Carpentry</span><br>
+                            <span class="text-[10px] text-slate-400">tech_carpentry</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div class="text-center pt-2">
-                <a href="http://localhost:8000/" class="text-xs text-indigo-400 hover:underline">← Go to Student Portal (Public / No Login)</a>
+            <!-- Phone OTP Login Panel -->
+            <div id="panel-otp" class="hidden space-y-4">
+                <!-- Step 1: Enter phone -->
+                <div id="otp-step-phone" class="space-y-3">
+                    <p class="text-xs text-slate-400">Enter your registered mobile number. An OTP will be sent via SMS.</p>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Mobile Number</label>
+                        <input type="tel" id="tech-otp-phone" placeholder="e.g. 9876543210" class="w-full bg-[#020617] border border-slate-700 text-xs text-white rounded-lg p-3 outline-none focus:border-amber-500 font-mono">
+                    </div>
+                    <button id="btn-otp-send" onclick="techSendOtp()" class="w-full touch-target rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors flex items-center justify-center">
+                        Send OTP
+                    </button>
+                    <div class="pt-2 border-t border-slate-800 space-y-1.5">
+                        <p class="text-[11px] text-slate-400 font-mono uppercase tracking-wider font-semibold text-center">Fast Demo 1-Click Numbers</p>
+                        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                            <button type="button" onclick="document.getElementById('tech-otp-phone').value='9876543210'; techSendOtp();" class="p-2 rounded-lg bg-slate-800 border border-slate-700 hover:border-amber-500 text-slate-300 text-left transition-colors">
+                                <span class="font-bold text-white">Registered Tech</span><br>
+                                <span class="text-[10px] text-amber-400">9876543210</span>
+                            </button>
+                            <button type="button" onclick="document.getElementById('tech-otp-phone').value='9999999999'; techSendOtp();" class="p-2 rounded-lg bg-slate-800 border border-slate-700 hover:border-amber-500 text-slate-300 text-left transition-colors">
+                                <span class="font-bold text-white">Master Bypass</span><br>
+                                <span class="text-[10px] text-emerald-400">9999999999</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Step 2: Enter OTP code -->
+                <div id="otp-step-code" class="hidden space-y-3">
+                    <p class="text-xs text-slate-400">Enter the 6-digit OTP sent to <span id="otp-sent-to" class="text-amber-400 font-mono"></span></p>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">OTP Code</label>
+                        <input type="text" id="tech-otp-code" maxlength="6" placeholder="6-digit code" class="w-full bg-[#020617] border border-slate-700 text-xs text-white rounded-lg p-3 outline-none focus:border-amber-500 font-mono tracking-widest text-center text-lg">
+                    </div>
+                    <button id="btn-otp-verify" onclick="techVerifyOtp()" class="w-full touch-target rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors flex items-center justify-center">
+                        Verify &amp; Sign In
+                    </button>
+                    <button onclick="resetOtpStep()" class="w-full text-xs text-slate-500 hover:text-slate-300 transition-colors">← Change number</button>
+                </div>
+            </div>
+
+            <div class="text-center pt-1">
+                <a href="/" class="text-xs text-indigo-400 hover:underline">← Go to Student Portal (Public / No Login)</a>
             </div>
         </div>
     </div>

@@ -174,3 +174,83 @@ class DashboardStatsResponse(BaseModel):
     avg_resolution_time_hrs: Optional[float] = None
     sla_metrics: List[SLAMetric]
 
+
+# ─── SMS OTP Schemas ───────────────────────────────────────────────────────────
+
+class OtpSendRequest(BaseModel):
+    """Request an OTP SMS to a phone number."""
+    phone: str
+    purpose: str = "login"   # login | ticket | step2
+
+
+class OtpSendResponse(BaseModel):
+    success: bool
+    master_bypass: bool = False   # True → skip OTP entry, log in immediately
+    message: str = ""
+    # Only present in dev/demo mode (no Twilio creds configured)
+    dev_code: Optional[str] = None
+
+
+class OtpVerifyRequest(BaseModel):
+    """Verify an OTP code for a given phone and purpose."""
+    phone: str
+    code: str
+    purpose: str = "login"
+
+
+class OtpVerifyResponse(BaseModel):
+    verified: bool
+    message: str = ""
+
+
+# ─── Phone-OTP based Login (Tech & Admin) ─────────────────────────────────────
+
+class PhoneLoginRequest(BaseModel):
+    """Step 1: initiate OTP login by phone number."""
+    phone: str
+
+
+class PhoneOtpLoginRequest(BaseModel):
+    """Step 2: complete OTP login by phone + code."""
+    phone: str
+    code: str
+
+
+# ─── Admin-managed TechUser CRUD ──────────────────────────────────────────────
+
+class TechUserCreateRequest(BaseModel):
+    username: str
+    name: str
+    phone: str
+    dept: Optional[str] = "General Maintenance"
+
+
+class TechUserUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    dept: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class TechUserResponse(BaseModel):
+    id: int
+    username: str
+    name: str
+    phone: str
+    dept: str
+    is_active: bool
+    created_at: datetime.datetime
+    created_by: str
+
+    class Config:
+        from_attributes = True
+
+
+# ─── Student OTP Phone Verification ───────────────────────────────────────────
+
+class PhoneOtpVerifyTicketRequest(BaseModel):
+    """After OTP is verified, attach verified_otp_token to the room ticket submit."""
+    phone: str
+    code: str
+
+

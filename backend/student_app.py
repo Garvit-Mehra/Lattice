@@ -24,9 +24,11 @@ from .schemas import (
     HostelResponse, ApplianceResponse, ApplianceReportRequest,
     RoomTicketCreateRequest, TicketResponse, TicketVoteRequest,
     StudentVerifyWorkRequest, DashboardStatsResponse, SLAMetric,
-    ApplianceResolveCrowdRequest
+    ApplianceResolveCrowdRequest, OtpSendRequest, OtpSendResponse,
+    OtpVerifyRequest, OtpVerifyResponse
 )
 from .scoring import calculate_priority
+from .sms import send_otp_sms, verify_otp, is_master_number, _normalise_phone
 
 # Ensure DB tables exist
 Base.metadata.create_all(bind=engine)
@@ -464,6 +466,39 @@ def crowd_report_working(
 # ==========================================
 # 2. ROOM MAINTENANCE & 2-STEP VERIFICATION
 # ==========================================
+@app.post("/api/v1/otp/send", response_model=OtpSendResponse)
+def send_phone_otp(req: OtpSendRequest, request: Request):
+    """
+    Sends a 6-digit OTP to the student's phone number via SMS.
+    If the master demo number is entered, master_bypass=True is returned and
+    no SMS is sent — the frontend should skip the OTP entry step.
+    Purpose: 'ticket' (for room maintenance verification) or 'step2' (work confirmation).
+    """
+    check_rate_limit(request, limit=5, window_seconds=60, action="otp_send")
+    result = send_otp_sms(req.phone, purpose=req.purpose)
+    if not result["success"]:
+        raise HTTPException(status_code=503, detail=f"SMS delivery failed: {result.get('error', 'Unknown error')}. Please try again.")
+    return OtpSendResponse(
+        success=True,
+        master_bypass=result.get("master_bypass", False),
+        message="OTP sent" if not result.get("master_bypass") else "Master bypass — login directly.",
+        dev_code=result.get("dev_code"),
+    )
+
+
+@app.post("/api/v1/otp/verify", response_model=OtpVerifyResponse)
+def verify_phone_otp(req: OtpVerifyRequest, request: Request):
+    """
+    Verifies the OTP code entered by the student.
+    On success the OTP is invalidated immediately (single-use).
+    """
+    check_rate_limit(request, limit=10, window_seconds=60, action="otp_verify")
+    ok = verify_otp(req.phone, req.code, purpose=req.purpose)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP. Please request a new code.")
+    return OtpVerifyResponse(verified=True, message="Phone number verified successfully.")
+
+
 @app.post("/api/v1/tickets/room", response_model=TicketResponse)
 def create_room_ticket(req: RoomTicketCreateRequest, request: Request, db: Session = Depends(get_db)):
     """Lodge direct room maintenance request with floor and mobile validation."""
@@ -583,11 +618,6 @@ def student_verify_room_work(
         # Task 10: Escalate priority score on student rejection (+15 points, minimum 52.0 CRITICAL)
         ticket.computed_priority = round(max((ticket.computed_priority or 25.0) + 15.0, 52.0), 1)
         ticket.priority_overridden = True
-
-    db.commit()
-    db.refresh(ticket)
-    _, tier = enrich_ticket_data(ticket, now)
-    return format_ticket_response(ticket, tier)
 
     db.commit()
     db.refresh(ticket)

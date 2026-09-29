@@ -17,16 +17,18 @@ from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from .database import engine, get_db, Base
-from .models import Hostel, Appliance, Ticket, TicketVote
+from .database import engine, get_db, Base, SessionLocal
+from .models import Hostel, Appliance, Ticket, TicketVote, TechUser
 from .schemas import (
     LoginRequest, LoginResponse, DashboardStatsResponse,
     SLAMetric, TicketResponse, ApplianceResponse,
     AdminTicketOverrideRequest, AdminApplianceStatusRequest,
-    HostelResponse
+    HostelResponse, OtpSendRequest, OtpSendResponse, PhoneOtpLoginRequest,
+    TechUserCreateRequest, TechUserUpdateRequest, TechUserResponse
 )
 from .scoring import calculate_priority
 from .auth import authenticate_user, verify_session, revoke_session
+from .sms import send_otp_sms, verify_otp, is_master_number, _normalise_phone
 
 Base.metadata.create_all(bind=engine)
 
@@ -163,11 +165,11 @@ def format_ticket_response(t: Ticket, tier: str = "LOW") -> TicketResponse:
 
 
 # ==========================================
-# 1. AUTHENTICATION
+# 1. AUTHENTICATION — PASSWORD + OTP PHONE LOGIN
 # ==========================================
 @app.post("/api/v1/admin/login", response_model=LoginResponse)
 def admin_login(req: LoginRequest):
-    """Authenticate estate admin credentials."""
+    """Authenticate estate admin credentials (username + password)."""
     session = authenticate_user(req.username, req.password, required_role="admin")
     if not session:
         raise HTTPException(status_code=401, detail="Invalid estate administrator credentials.")
@@ -178,6 +180,75 @@ def admin_login(req: LoginRequest):
         role=session["role"],
         name=session["name"]
     )
+
+
+@app.post("/api/v1/admin/otp/send", response_model=OtpSendResponse)
+def admin_send_otp(req: OtpSendRequest):
+    """
+    Step 1 of phone-OTP admin login: send OTP to admin's registered phone.
+    Master number bypasses OTP immediately.
+    """
+    normalised = _normalise_phone(req.phone)
+    if is_master_number(normalised):
+        return OtpSendResponse(success=True, master_bypass=True, message="Master number — OTP bypassed.")
+
+    result = send_otp_sms(normalised, purpose="login")
+    if not result["success"]:
+        raise HTTPException(status_code=503, detail=f"SMS delivery failed: {result.get('error', 'Unknown')}")
+
+    return OtpSendResponse(
+        success=True, master_bypass=False,
+        message=f"OTP sent to ***{normalised[-4:]}",
+        dev_code=result.get("dev_code")
+    )
+
+
+@app.post("/api/v1/admin/otp/login", response_model=LoginResponse)
+def admin_otp_login(req: PhoneOtpLoginRequest):
+    """
+    Step 2 of phone-OTP admin login: verify OTP and issue session.
+    Admin phone is configured via LATTICE_ADMIN_PHONE env var.
+    Master number skips OTP.
+    """
+    import uuid, datetime
+    from .auth import ACTIVE_SESSIONS, SESSION_TTL_HOURS
+    from .models import AuthSession
+
+    normalised = _normalise_phone(req.phone)
+    admin_phone = _normalise_phone(os.getenv("LATTICE_ADMIN_PHONE", ""))
+
+    if is_master_number(normalised):
+        name = "Demo Administrator (Master)"
+        username = "master_admin_demo"
+    elif admin_phone and normalised == admin_phone:
+        if not verify_otp(normalised, req.code, purpose="login"):
+            raise HTTPException(status_code=401, detail="Invalid or expired OTP.")
+        name = "Estate Officer (Phone Login)"
+        username = "admin_phone"
+    else:
+        raise HTTPException(status_code=403, detail="Phone number not authorised for admin login. Use username+password or contact IT.")
+
+    now = datetime.datetime.utcnow()
+    expires_at = now + datetime.timedelta(hours=SESSION_TTL_HOURS)
+    token = f"lat_admin_{uuid.uuid4().hex}"
+    session_data = {
+        "token": token, "username": username, "name": name,
+        "role": "admin", "dept": "Estate Office",
+        "created_at": now.isoformat(), "expires_at": expires_at.isoformat()
+    }
+    ACTIVE_SESSIONS[token] = session_data
+    try:
+        db_s = SessionLocal()
+        db_s.add(AuthSession(
+            token=token, username=username, name=name,
+            role="admin", dept="Estate Office", created_at=now, expires_at=expires_at
+        ))
+        db_s.commit()
+        db_s.close()
+    except Exception as e:
+        print(f"Warning: could not persist admin OTP session: {e}")
+
+    return LoginResponse(token=token, username=username, role="admin", name=name)
 
 
 @app.post("/api/v1/admin/logout")
@@ -193,6 +264,87 @@ def admin_logout(authorization: Optional[str] = Header(None)):
 def admin_me(admin: dict = Depends(get_current_admin)):
     """Returns profile of currently logged-in administrator."""
     return admin
+
+
+# ==========================================
+# 1b. ADMIN-MANAGED TECH USER ACCOUNTS
+# ==========================================
+@app.get("/api/v1/admin/tech-users", response_model=list[TechUserResponse])
+def list_tech_users(db: Session = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    """Returns all admin-created technician accounts (OTP login eligible)."""
+    return db.query(TechUser).order_by(TechUser.created_at.desc()).all()
+
+
+@app.post("/api/v1/admin/tech-users", response_model=TechUserResponse, status_code=201)
+def create_tech_user(
+    req: TechUserCreateRequest,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """
+    Admin creates a new technician account with a registered phone number.
+    The technician can then log in via OTP sent to this phone.
+    Technicians cannot register themselves.
+    """
+    normalised = _normalise_phone(req.phone)
+    # Check for duplicate username or phone
+    if db.query(TechUser).filter(TechUser.username == req.username).first():
+        raise HTTPException(status_code=409, detail=f"Username '{req.username}' already exists.")
+    if db.query(TechUser).filter(TechUser.phone == normalised).first():
+        raise HTTPException(status_code=409, detail=f"Phone {normalised} already registered to another technician.")
+
+    new_user = TechUser(
+        username=req.username.strip().lower(),
+        name=req.name,
+        phone=normalised,
+        dept=req.dept or "General Maintenance",
+        created_by=admin["username"]
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
+@app.patch("/api/v1/admin/tech-users/{user_id}", response_model=TechUserResponse)
+def update_tech_user(
+    user_id: int,
+    req: TechUserUpdateRequest,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Admin updates a technician's name, phone, department, or active status."""
+    user = db.query(TechUser).filter(TechUser.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Tech user not found.")
+
+    if req.name is not None:
+        user.name = req.name
+    if req.phone is not None:
+        user.phone = _normalise_phone(req.phone)
+    if req.dept is not None:
+        user.dept = req.dept
+    if req.is_active is not None:
+        user.is_active = req.is_active
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.delete("/api/v1/admin/tech-users/{user_id}")
+def delete_tech_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Admin permanently removes a technician OTP account."""
+    user = db.query(TechUser).filter(TechUser.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Tech user not found.")
+    db.delete(user)
+    db.commit()
+    return {"status": "success", "message": f"Tech user '{user.username}' deleted."}
 
 
 # ==========================================

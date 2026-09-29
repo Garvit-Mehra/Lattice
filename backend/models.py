@@ -101,3 +101,32 @@ class AuthSession(Base):
     dept = Column(String(100), default="General")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     expires_at = Column(DateTime, nullable=True)
+
+
+class OtpRecord(Base):
+    """Short-lived OTP code store for SMS verification."""
+    __tablename__ = "otp_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    phone = Column(String(20), unique=True, index=True, nullable=False)  # normalised E.164
+    code = Column(String(10), nullable=False)
+    purpose = Column(String(50), default="login")  # login | ticket | step2
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class TechUser(Base):
+    """
+    Admin-managed technician account with phone-OTP login.
+    Created by estate admin; technicians cannot self-register.
+    """
+    __tablename__ = "tech_users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(100), unique=True, index=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    phone = Column(String(20), unique=True, index=True, nullable=False)  # normalised E.164
+    dept = Column(String(100), default="General Maintenance")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_by = Column(String(100), default="admin")  # admin username who created this account

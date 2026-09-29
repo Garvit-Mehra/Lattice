@@ -3,7 +3,14 @@
 **Theme:** Smart Campus Solutions for IIT Hyderabad (IITH)  
 **Submission:** Final Evaluation & Presentation Build  
 **Benchmark Ticket Reference:** `#LAT-8921`  
-**Status:** 100% Production Ready (38/38 Tasks Verified & Passing)
+**Status:** Evaluation Demo Build (38 Core Features Verified)
+
+> [!WARNING]
+> ### ⚠️ Hackathon Submission Notice & Evaluation Disclaimer
+> This project is a **MILAN 2026 Hackathon prototype submission** created for live demonstration and judging, **not a finalized production release**:
+> - **Operational Core Flows:** Core end-to-end workflows (Common Appliance Crowd-Confirmation & 2-vote resolution, Direct Room Maintenance complaints, 2-Step Technician $\leftrightarrow$ Resident Verification, and SMS OTP Auth) are fully functional for evaluation.
+> - **In-Progress Features & Placeholders:** Extended IoT hardware sensors, automatic campus vendor purchase orders, and complete institutional ERP integrations are designed as proof-of-concept prototypes and architectural placeholders.
+> - **Prototype Nuances:** Users may encounter test-data refreshes, mock SMS dev-logs, or minor edge-case UI quirks typical of hackathon builds. An on-screen disclaimer banner and modal alert are presented on first load.
 
 ---
 
@@ -216,3 +223,147 @@ PYTHONPATH=. python tests/test_e2e_playwright.py
 | **UI/UX & Accessibility** | 10% | Industrial Utility design tokens, keyboard accessibility (`Escape` modal dismissal, `Enter` lookup), unified badge color palettes, and responsive grids. |
 | **Presentation** | 10% | Built-in 10-slide interactive pitch deck (`/presentation`) with keyboard navigation and 1-click direct portal launchers. |
 | **Completeness** | 10% | 100% production-ready (38/38 tasks completed), 15 integration test suites, concurrent load benchmarks, Playwright E2E browser tests, Docker containerization, and GitHub Actions CI. |
+
+---
+
+## 11. SMS OTP Verification
+
+LATTICE uses **Twilio** to send real SMS one-time passwords for two purposes:
+1. **Phone verification before lodging a room maintenance ticket** — students prove ownership of their mobile number.
+2. **Phone-OTP login for Technicians and Estate Admins** — no username/password needed; just enter registered phone → receive OTP → sign in.
+
+### How OTP login works
+
+```
+┌─────────────┐   POST /api/v1/tech/otp/send   ┌─────────────┐
+│  Technician │ ─────────────────────────────▶ │   Backend   │ ──▶ Twilio SMS ──▶ 📱
+│   Browser   │   { phone: "9876543210" }       │             │
+│             │ ◀───────────────────────────── │             │  { success: true }
+│             │                                │             │
+│  Enter OTP  │   POST /api/v1/tech/otp/login  │             │
+│   123456    │ ─────────────────────────────▶ │   Backend   │
+│             │   { phone, code }              │             │
+│             │ ◀───────────────────────────── │             │  { token: "lat_technician_..." }
+└─────────────┘    Session token issued        └─────────────┘
+```
+
+**Master Number bypass:** Entering the demo master phone (`LATTICE_MASTER_PHONE`) in any login or ticket form skips OTP entirely — instant access, no SMS sent. Intended for hackathon demos only.
+
+### Login flows
+
+| Portal | Password login | Phone OTP login |
+|---|---|---|
+| **Student Portal** | N/A (no login) | OTP sent before room ticket is created |
+| **Technician** | `technician` / `tech123` (existing) | Phone registered by admin → OTP → session |
+| **Estate Admin** | `admin` / `admin123` (existing) | Phone set via `LATTICE_ADMIN_PHONE` → OTP → session |
+
+Both login methods coexist — the UI shows a tabbed **Password / 📱 Phone OTP** switcher on every login modal.
+
+### Admin-managed Technician accounts
+
+Technicians **cannot self-register**. The estate admin creates their phone accounts:
+
+```bash
+# Create a new technician OTP account (admin auth required)
+curl -X POST http://localhost:8000/admin/api/v1/admin/tech-users \
+  -H 'Authorization: Bearer <admin-token>' \
+  -H 'Content-Type: application/json' \
+  -d '{ "username": "ramesh_elec", "name": "Ramesh (Electrical)", "phone": "9876543210", "dept": "Electrical" }'
+
+# List all registered tech accounts
+curl http://localhost:8000/admin/api/v1/admin/tech-users \
+  -H 'Authorization: Bearer <admin-token>'
+
+# Deactivate a tech account
+curl -X PATCH http://localhost:8000/admin/api/v1/admin/tech-users/{id} \
+  -H 'Authorization: Bearer <admin-token>' \
+  -d '{ "is_active": false }'
+```
+
+Once registered, the technician opens the Tech portal → clicks **📱 Phone OTP** tab → enters their phone → SMS arrives → signs in.
+
+### OTP API endpoints
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `POST` | `/api/v1/otp/send` | None | Send ticket-verification OTP to student phone |
+| `POST` | `/api/v1/otp/verify` | None | Verify student phone OTP before ticket creation |
+| `POST` | `/api/v1/tech/otp/send` | None | Send login OTP to registered technician phone |
+| `POST` | `/api/v1/tech/otp/login` | None | Verify OTP → issue technician session token |
+| `POST` | `/api/v1/admin/otp/send` | None | Send login OTP to admin phone |
+| `POST` | `/api/v1/admin/otp/login` | None | Verify OTP → issue admin session token |
+| `GET` | `/api/v1/admin/tech-users` | Admin | List admin-created tech accounts |
+| `POST` | `/api/v1/admin/tech-users` | Admin | Create tech account with phone |
+| `PATCH` | `/api/v1/admin/tech-users/{id}` | Admin | Update name / phone / dept / active status |
+| `DELETE` | `/api/v1/admin/tech-users/{id}` | Admin | Remove tech account |
+
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `TWILIO_ACCOUNT_SID` | For real SMS | Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | For real SMS | Twilio auth token |
+| `TWILIO_FROM_NUMBER` | For real SMS | Sender number, e.g. `+14155238886` |
+| `LATTICE_MASTER_PHONE` | Optional | Demo bypass number (e.g. `+919999999999`) — skips OTP |
+| `LATTICE_ADMIN_PHONE` | Optional | Admin phone number for phone-OTP login |
+| `LATTICE_OTP_TTL_SECONDS` | Optional | OTP validity window (default: `300` = 5 minutes) |
+
+### Dev / demo mode (no Twilio credentials)
+
+If `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` are **not set**, the server falls back to:
+1. Printing the OTP to the server console (`stdout`)
+2. Returning it as `dev_code` in the API response
+3. The frontend **auto-fills** the OTP input and shows a toast — zero friction for hackathon demos
+
+```json
+// POST /api/v1/otp/send response in dev mode
+{ "success": true, "master_bypass": false, "dev_code": "847291" }
+```
+
+---
+
+## 12. Vercel Deployment
+
+LATTICE is configured for single-service deployment on Vercel via [`vercel.json`](./vercel.json) and [`api/index.py`](./api/index.py).
+
+### How it works
+
+```
+vercel.json
+  └── service: lattice
+        ├── framework: fastapi
+        ├── entrypoint: api/index.py
+        └── rewrite: /(.*) → lattice service
+
+api/index.py
+  └── re-exports backend.student_app.app
+        ├── /tech   → tech_app (sub-mounted)
+        └── /admin  → admin_app (sub-mounted)
+```
+
+All three portals — student, technician, and estate admin — are served from a single Vercel serverless function.
+
+### Deploy
+
+```bash
+npm i -g vercel   # if not installed
+vercel            # follow prompts → project linked
+vercel --prod     # deploy to production
+```
+
+### Environment variables to configure in Vercel dashboard
+
+| Variable | Example Value | Purpose |
+|---|---|---|
+| `LATTICE_PUBLIC_URL` | `https://your-project.vercel.app` | Used in SMS verification links |
+| `LATTICE_ALLOWED_ORIGINS` | `https://your-project.vercel.app` | Added to CORS allow-list |
+| `TWILIO_ACCOUNT_SID` | `ACxxxxxx` | Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | `xxxxxxxx` | Twilio auth token |
+| `TWILIO_FROM_NUMBER` | `+14155238886` | SMS sender number |
+| `LATTICE_MASTER_PHONE` | `+919999999999` | Demo bypass number |
+| `LATTICE_ADMIN_PHONE` | `+919876543210` | Admin phone for OTP login |
+| `ADMIN_PASSWORD` | *(your choice)* | Estate admin password |
+| `TECH_PASSWORD` | *(your choice)* | Technician password |
+
+> **⚠️ SQLite on Vercel:** Vercel's serverless functions use an ephemeral filesystem — SQLite writes do **not** persist between invocations. Seed data is recreated on each cold start. For persistent storage, migrate the `DATABASE_URL` connection to PostgreSQL (e.g. [Neon](https://neon.tech) or [Supabase](https://supabase.com)) and update `backend/database.py` accordingly.
+

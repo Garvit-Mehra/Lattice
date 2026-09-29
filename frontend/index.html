@@ -10,6 +10,51 @@
 </head>
 <body class="min-h-screen flex flex-col bg-slate-50 text-slate-900 antialiased selection:bg-slate-900 selection:text-white">
 
+    <!-- Hackathon Disclaimer Banner (Persistent Ribbon) -->
+    <div id="hackathon-warning-banner" class="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-medium border-b border-amber-600 flex items-center justify-between shadow-xs sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto w-full flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="bg-slate-950 text-amber-300 font-mono font-black px-2 py-0.5 rounded text-[10px] uppercase tracking-wider">Hackathon Build</span>
+                <span><strong>Notice:</strong> This is a MILAN 2026 hackathon demo submission, not the finalized production product. Some features are active demo prototypes and minor bugs may occur.</span>
+            </div>
+            <button onclick="document.getElementById('hackathon-warning-banner').style.display='none'" class="text-slate-900 hover:text-black font-bold text-sm px-1.5 py-0.5 rounded hover:bg-amber-400/80 transition-colors" title="Dismiss banner">✕</button>
+        </div>
+    </div>
+
+    <!-- Hackathon First-Load Modal Alert -->
+    <div id="hackathon-alert-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4">
+        <div class="bg-white border-2 border-amber-400 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 flex-shrink-0 text-xl font-bold">
+                    ⚠️
+                </div>
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-amber-100 text-amber-900 font-mono font-bold text-[10px] px-2 py-0.5 rounded border border-amber-300">MILAN 2026 HACKATHON</span>
+                        <span class="text-[11px] text-slate-400 font-mono">Demo Build</span>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 tracking-tight">Hackathon Prototype Notice</h3>
+                </div>
+            </div>
+            <div class="text-xs text-slate-600 leading-relaxed bg-amber-50/70 border border-amber-200 rounded-xl p-3.5 space-y-2">
+                <p class="font-medium text-amber-950">
+                    This application is a <strong>hackathon evaluation submission</strong> and <em>not a final production release</em>.
+                </p>
+                <ul class="list-disc list-inside space-y-1 text-slate-700 text-[11px]">
+                    <li>Core workflows (appliance crowd-voting, 2-step verification, SMS OTP auth) are functioning for evaluation.</li>
+                    <li>Some advanced features and full campus hardware integrations remain prototype placeholders.</li>
+                    <li>You may encounter minor visual bugs or test data resets during judging.</li>
+                </ul>
+            </div>
+            <div class="flex justify-end pt-1">
+                <button type="button" onclick="dismissHackathonModal()" class="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white transition-colors shadow-xs flex items-center justify-center gap-1.5">
+                    <span>Understood, Proceed to Demo</span>
+                    <span>→</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Global Header Layout -->
     <header class="border-b border-slate-200 bg-white sticky top-0 z-40 shadow-xs">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -240,11 +285,14 @@
                         </div>
                         <div class="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
                             <span class="font-medium">1-Click Demo:</span>
-                            <button type="button" onclick="setDemoLookup('LAT-8921')" class="px-2 py-0.5 rounded font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition-colors">
+                            <button type="button" onclick="setDemoLookup('LAT-8921')" class="px-2 py-0.5 rounded font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition-colors" title="In-Progress Benchmark">
                                 #LAT-8921 (Benchmark)
                             </button>
-                            <button type="button" onclick="setDemoLookup('LAT-6040')" class="px-2 py-0.5 rounded font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors">
-                                #LAT-6040
+                            <button type="button" onclick="setDemoLookup('LAT-G080')" class="px-2 py-0.5 rounded font-mono font-bold bg-indigo-50 text-indigo-800 border border-indigo-300 hover:bg-indigo-100 transition-colors" title="Step 2: Awaiting Resident Sign-off">
+                                #LAT-G080 (Awaiting Verify)
+                            </button>
+                            <button type="button" onclick="setDemoLookup('LAT-G030')" class="px-2 py-0.5 rounded font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 transition-colors" title="Closed / Resolved">
+                                #LAT-G030 (Resolved)
                             </button>
                         </div>
                     </div>

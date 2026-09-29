@@ -95,6 +95,22 @@ function setDemoLookup(ticketId) {
     }
 }
 
+function dismissHackathonModal() {
+    const modal = document.getElementById("hackathon-alert-modal");
+    if (modal) modal.classList.add("hidden");
+    try {
+        sessionStorage.setItem("lattice_hackathon_warned", "true");
+    } catch (e) {}
+}
+
+// Auto-check if warning was dismissed previously
+try {
+    if (sessionStorage.getItem("lattice_hackathon_warned") === "true") {
+        const modal = document.getElementById("hackathon-alert-modal");
+        if (modal) modal.classList.add("hidden");
+    }
+} catch (e) {}
+
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bootstrap);
 } else {
@@ -651,14 +667,15 @@ async function submitApplianceReport() {
 
         if (res.ok) {
             closeReportModal();
+            showToast("Report submitted! Floor residents can now confirm.", "success");
             await loadAppliances();
             await loadSLAStats();
         } else {
             const err = await res.json();
-            alert("Error: " + (err.detail || "Failed to submit report"));
+            showToast("Error: " + (err.detail || "Failed to submit report"), "error");
         }
     } catch (e) {
-        alert("Failed to submit appliance report: " + e.message);
+        showToast("Failed to submit appliance report: " + e.message, "error");
     }
 }
 
@@ -671,13 +688,14 @@ async function confirmBroken(appId) {
         });
 
         if (res.ok) {
+            showToast("Your confirmation was recorded. Priority recalculated!", "success");
             await loadAppliances();
         } else {
             const err = await res.json();
-            alert(err.detail || "You have already confirmed this issue.");
+            showToast(err.detail || "You have already confirmed this issue.", "warning");
         }
     } catch (e) {
-        alert("Failed to confirm issue: " + e.message);
+        showToast("Failed to confirm issue: " + e.message, "error");
     }
 }
 
@@ -706,31 +724,125 @@ async function reportWorking(appId) {
     }
 }
 
-// ==========================================
-// 4. ROOM MAINTENANCE & 2-STEP RESOLUTION
-// ==========================================
+// ─── Room Ticket OTP State ────────────────────────────────────────────────────
+// State machine: 'idle' → 'otp_sent' → 'otp_verified' → ticket submitted
+let _ticketOtpState = "idle";
+let _ticketVerifiedPhone = "";
+let _ticketFormData = null;
+
 async function submitRoomTicket(e) {
     e.preventDefault();
     const resultBox = document.getElementById("room-ticket-result");
     resultBox.classList.add("hidden");
 
-    const hostelId = parseInt(document.getElementById("room-hostel-select").value);
-    const floor = parseInt(document.getElementById("room-floor").value);
-    const roomNumber = document.getElementById("room-number").value.trim().toUpperCase();
-    const category = document.getElementById("room-category").value;
-    const desc = document.getElementById("room-desc").value.trim();
-    const reporterName = document.getElementById("room-reporter-name").value.trim();
-    const reporterContact = document.getElementById("room-reporter-contact").value.trim();
+    const hostelId       = parseInt(document.getElementById("room-hostel-select").value);
+    const floor          = parseInt(document.getElementById("room-floor").value);
+    const roomNumber     = document.getElementById("room-number").value.trim().toUpperCase();
+    const category       = document.getElementById("room-category").value;
+    const desc           = document.getElementById("room-desc").value.trim();
+    const reporterName   = document.getElementById("room-reporter-name").value.trim();
+    const reporterContact= document.getElementById("room-reporter-contact").value.trim();
+    const cleanPhone     = reporterContact.replace(/\D/g, "");
 
-    // Validate 10-digit mobile number
-    const cleanPhone = reporterContact.replace(/\D/g, "");
+    // Validate phone
     if (!cleanPhone || cleanPhone.length < 10) {
         resultBox.className = "p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800";
-        resultBox.textContent = "Please enter a valid 10-digit mobile phone number so technicians can contact you and dispatch SMS verification notifications.";
+        resultBox.textContent = "Please enter a valid 10-digit mobile number. An OTP will be sent to verify your identity before the ticket is created.";
         resultBox.classList.remove("hidden");
         return;
     }
 
+    _ticketFormData = { hostelId, floor, roomNumber, category, desc, reporterName, cleanPhone };
+
+    // If phone already verified in this session, skip OTP
+    if (_ticketOtpState === "otp_verified" && _ticketVerifiedPhone === cleanPhone) {
+        await _createRoomTicket(resultBox);
+        return;
+    }
+
+    // Step 1: Send OTP
+    _ticketOtpState = "idle";
+    resultBox.className = "p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800";
+    resultBox.textContent = "Sending OTP to your mobile…";
+    resultBox.classList.remove("hidden");
+
+    try {
+        const res = await fetch("/api/v1/otp/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: cleanPhone, purpose: "ticket" })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to send OTP.");
+
+        if (data.master_bypass) {
+            // Master bypass — skip OTP entry entirely
+            _ticketOtpState = "otp_verified";
+            _ticketVerifiedPhone = cleanPhone;
+            await _createRoomTicket(resultBox);
+            return;
+        }
+
+        _ticketOtpState = "otp_sent";
+        _ticketVerifiedPhone = cleanPhone;
+
+        // Render OTP entry inline
+        let devHint = data.dev_code ? `<p class="text-[11px] text-blue-600 font-mono mt-1">[DEV] OTP: <strong>${data.dev_code}</strong></p>` : "";
+        resultBox.innerHTML = `
+            <p class="font-semibold mb-2">📱 OTP sent to ***${cleanPhone.slice(-4)}. Enter code to continue:</p>
+            <div class="flex gap-2 items-center">
+                <input id="room-otp-input" type="text" maxlength="6" placeholder="6-digit OTP" class="flex-1 bg-white border border-blue-300 rounded-lg px-3 py-2 text-xs font-mono tracking-widest outline-none focus:border-blue-500 text-slate-900">
+                <button id="room-otp-btn" onclick="verifyRoomTicketOtp()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors">Verify</button>
+            </div>
+            <button onclick="resendRoomOtp()" class="mt-1 text-[11px] text-blue-500 hover:underline">Resend OTP</button>
+            ${devHint}
+        `;
+
+        const otpInput = document.getElementById("room-otp-input");
+        if (otpInput) otpInput.addEventListener("keydown", (ev) => { if (ev.key === "Enter") verifyRoomTicketOtp(); });
+
+    } catch (err) {
+        resultBox.className = "p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800";
+        resultBox.textContent = err.message;
+        resultBox.classList.remove("hidden");
+    }
+}
+
+async function verifyRoomTicketOtp() {
+    const code = (document.getElementById("room-otp-input")?.value || "").trim();
+    const resultBox = document.getElementById("room-ticket-result");
+    const btn = document.getElementById("room-otp-btn");
+    if (!code || code.length < 6) {
+        showToast("Please enter the 6-digit OTP.", "warning");
+        return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = "Verifying…"; }
+    try {
+        const res = await fetch("/api/v1/otp/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: _ticketVerifiedPhone, code, purpose: "ticket" })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Invalid OTP. Please try again.");
+
+        _ticketOtpState = "otp_verified";
+        await _createRoomTicket(resultBox);
+    } catch (err) {
+        showToast(err.message, "error");
+        if (btn) { btn.disabled = false; btn.textContent = "Verify"; }
+    }
+}
+
+async function resendRoomOtp() {
+    _ticketOtpState = "idle";
+    // Re-trigger the submit flow
+    const fakeEvent = { preventDefault: () => {} };
+    await submitRoomTicket(fakeEvent);
+}
+
+async function _createRoomTicket(resultBox) {
+    const { hostelId, floor, roomNumber, category, desc, reporterName, cleanPhone } = _ticketFormData;
     try {
         const res = await fetch("/api/v1/tickets/room", {
             method: "POST",
@@ -753,10 +865,11 @@ async function submitRoomTicket(e) {
         }
 
         const ticket = await res.json();
+        _ticketOtpState = "otp_verified"; // Keep state so same phone doesn't need re-verify in session
         resultBox.className = "p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1.5";
         resultBox.innerHTML = `
             <div class="flex items-center gap-1.5 font-bold">
-                <span>Ticket Lodged:</span>
+                <span>✅ Phone Verified &amp; Ticket Lodged:</span>
                 <span class="font-mono text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded">Ticket Reference: #${ticket.ticket_code}</span>
             </div>
             <p>Your complaint has been queued for technician assignment.</p>
@@ -764,10 +877,7 @@ async function submitRoomTicket(e) {
         `;
         resultBox.classList.remove("hidden");
 
-        // Clear description
         document.getElementById("room-desc").value = "";
-        
-        // Auto-lookup the newly generated ticket
         document.getElementById("ticket-lookup-input").value = "#" + ticket.ticket_code;
         lookupTicket();
 
@@ -775,16 +885,16 @@ async function submitRoomTicket(e) {
         resultBox.className = "p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800";
         resultBox.textContent = err.message;
         resultBox.classList.remove("hidden");
-
     }
 }
+
 
 async function lookupTicket() {
     const rawCode = document.getElementById("ticket-lookup-input").value.trim();
     const container = document.getElementById("ticket-status-display");
 
     if (!rawCode) {
-        alert("Please enter a ticket reference (e.g. #LAT-8921).");
+        showToast("Please enter a ticket reference (e.g. #LAT-8921).", "warning");
         return;
     }
     const cleanCode = rawCode.replace(/^#/, '').trim();
@@ -953,14 +1063,14 @@ async function confirmStudentVerification(ticketCode, verified) {
         });
 
         if (res.ok) {
-            alert(verified ? "Thank you! Your ticket has been confirmed and officially closed." : "Noted. Ticket reopened and technician notified.");
+            showToast(verified ? "Thank you! Your ticket has been confirmed and officially closed." : "Noted. Ticket reopened and technician notified.", verified ? "success" : "warning", 5000);
             lookupTicket();
         } else {
             const err = await res.json();
-            alert("Error: " + (err.detail || "Failed to submit verification"));
+            showToast("Error: " + (err.detail || "Failed to submit verification"), "error");
         }
     } catch (e) {
-        alert("Failed to submit verification: " + e.message);
+        showToast("Failed to submit verification: " + e.message, "error");
     }
 }
 
