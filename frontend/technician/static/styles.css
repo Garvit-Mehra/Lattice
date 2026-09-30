@@ -95,8 +95,11 @@ body {
     box-shadow: 0 0 8px #10b981;
 }
 
-/* General display utilities fallback */
-.hidden {
+/* Visibility modal safety fallback */
+.tech-modal-overlay.hidden,
+#login-modal.hidden,
+#modal-appliance-status.hidden,
+.modal.hidden {
     display: none !important;
 }
 

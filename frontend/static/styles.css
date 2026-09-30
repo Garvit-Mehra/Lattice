@@ -95,8 +95,13 @@ body {
     box-shadow: 0 0 8px #10b981;
 }
 
-/* Visibility utility safety fallback */
-.hidden {
+/* Visibility modal safety fallback (does not conflict with responsive sm:flex / md:flex) */
+.modal.hidden,
+#login-modal.hidden,
+#admin-login-modal.hidden,
+#hackathon-alert-modal.hidden,
+#report-modal.hidden,
+.modal-overlay.hidden {
     display: none !important;
 }
 

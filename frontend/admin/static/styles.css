@@ -95,7 +95,10 @@ body {
     box-shadow: 0 0 8px #10b981;
 }
 
-/* Visibility utility safety fallback */
-.hidden {
+/* Visibility modal safety fallback */
+#admin-login-modal.hidden,
+#modal-force-resolve.hidden,
+#modal-ticket-override.hidden,
+.modal.hidden {
     display: none !important;
 }
